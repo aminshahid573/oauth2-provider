@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aminshahid573/oauth2-provider/internal/config"
+	"github.com/aminshahid573/oauth2-provider/internal/handlers"
 )
 
 func setupLogger() *slog.Logger {
@@ -28,6 +29,19 @@ func main() {
 	cfg := config.MustLoad(logger)
 
 	mainMux := http.NewServeMux()
+
+	mainMux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+	})
+
+	mainMux.HandleFunc("GET /login", handlers.LoginGetHandler)
+	mainMux.HandleFunc("POST /login", handlers.LoginPostHandler)
+
+	
+	mainMux.HandleFunc("GET /authorize", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("This is the authorization endpoint"))
+	})
+
 	server := &http.Server{
 		Handler:      mainMux,
 		Addr:         cfg.Addr,
