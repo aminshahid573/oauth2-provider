@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Authorize Application - My Awesome Service</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* --- Basic Reset & Global Styles (same as login page) --- */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+      background-color: #f0f2f5;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* --- Consent Container & Card Styling --- */
+    .consent-container {
+      background-color: #ffffff;
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+    }
+
+    .consent-header h2 {
+      font-size: 24px;
+      color: #1c1e21;
+      margin: 0 0 10px 0;
+    }
+    
+    .consent-header p {
+        color: #606770;
+        margin-top: 0;
+        font-size: 16px;
+    }
+
+    .client-name {
+      font-weight: 700;
+      color: #1877f2;
+    }
+
+    /* --- User Info Box --- */
+    .user-info {
+      background-color: #f0f2f5;
+      border-radius: 6px;
+      padding: 10px 15px;
+      margin: 25px 0;
+      font-size: 14px;
+      color: #606770;
+      text-align: left;
+      display: flex;
+      align-items: center;
+    }
+
+    .user-info .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background-color: #ccd0d5;
+      margin-right: 12px;
+      /* In a real app, you would set the background-image to the user's avatar URL */
+    }
+
+    /* --- Permissions List --- */
+    .permissions-section {
+      text-align: left;
+      margin-top: 25px;
+    }
+    .permissions-section h3 {
+      font-size: 16px;
+      font-weight: 500;
+      color: #1c1e21;
+      margin: 0 0 15px 0;
+      border-bottom: 1px solid #e4e6eb;
+      padding-bottom: 10px;
+    }
+
+    .permission-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .permission-list li {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 15px;
+      color: #333;
+    }
+
+    .permission-list svg {
+      width: 20px;
+      height: 20px;
+      margin-right: 12px;
+      color: #1877f2;
+    }
+
+    /* --- Action Buttons --- */
+    .action-buttons {
+      margin-top: 30px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .action-button {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .allow-button {
+      background-color: #1877f2;
+      color: #ffffff;
+    }
+    .allow-button:hover {
+      background-color: #166fe5;
+    }
+
+    .deny-button {
+      background-color: #e4e6eb;
+      color: #4b4f56;
+      border-color: #d1d5db;
+    }
+    .deny-button:hover {
+      background-color: #d8dbdf;
+    }
+    
+    /* --- Footer --- */
+    .consent-footer {
+        margin-top: 25px;
+        font-size: 12px;
+        color: #8a8d91;
+    }
+    .consent-footer a {
+        color: #606770;
+        text-decoration: none;
+    }
+    .consent-footer a:hover {
+        text-decoration: underline;
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="consent-container">
+    <div class="consent-header">
+      <!-- Your Logo could go here -->
+      <h2>Authorize Application</h2>
+      <p>
+        The application <strong class="client-name">{{.ClientName | default "This App"}}</strong> would like to connect to your account.
+      </p>
+    </div>
+
+    <div class="user-info">
+      <div class="avatar"></div> <!-- Dynamically set user avatar here -->
+      <div>
+        Continue as <strong>{{.UserEmail | default "your.email@example.com"}}</strong>
+      </div>
+    </div>
+
+    <div class="permissions-section">
+      <h3>This will allow the application to:</h3>
+      <ul class="permission-list">
+        <!-- 
+          IMPORTANT:
+          You should loop through the requested scopes here and display them.
+          This is a static example of what it might look like.
+        -->
+        <li>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+          View your basic profile information
+        </li>
+        <li>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+          Access your email address
+        </li>
+      </ul>
+    </div>
+    
+    <form method="POST">
+      <!-- These hidden inputs are crucial for the OAuth flow -->
+      <input type="hidden" name="client_id" value="{{.ClientID}}">
+      <input type="hidden" name="redirect_uri" value="{{.RedirectURI}}">
+      <input type="hidden" name="state" value="{{.State}}">
+      <input type="hidden" name="scope" value="{{.Scope}}">
+
+      <div class="action-buttons">
+        <!-- The 'name' attribute is important for your backend to know the user's choice -->
+        <button type="submit" name="consent_action" value="deny" class="action-button deny-button">Deny</button>
+        <button type="submit" name="consent_action" value="allow" class="action-button allow-button">Allow</button>
+      </div>
+    </form>
+    
+    <div clas

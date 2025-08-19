@@ -37,10 +37,9 @@ func main() {
 	mainMux.HandleFunc("GET /login", handlers.LoginGetHandler)
 	mainMux.HandleFunc("POST /login", handlers.LoginPostHandler)
 
-	
-	mainMux.HandleFunc("GET /authorize", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("This is the authorization endpoint"))
-	})
+	// Authorization routes
+	mainMux.HandleFunc("GET /authorize", handlers.AuthorizeGetHandler)
+	mainMux.HandleFunc("POST /authorize", handlers.AuthorizePostHandler)
 
 	server := &http.Server{
 		Handler:      mainMux,
