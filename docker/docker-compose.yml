@@ -14,7 +14,7 @@ services:
       - oauth2-net
 
   redis:
-    image: redis:7.2-alpine
+    image: redis
     container_name: oauth2-redis
     restart: unless-stopped
     ports:
