@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/aminshahid573/oauth2-provider/internal/config"
+	"github.com/aminshahid573/oauth2-provider/internal/services"
 	"github.com/aminshahid573/oauth2-provider/internal/storage"
 	"github.com/aminshahid573/oauth2-provider/internal/storage/mongodb"
 	"github.com/aminshahid573/oauth2-provider/internal/storage/redis"
@@ -18,23 +19,26 @@ import (
 
 // App holds application-wide dependencies.
 type App struct {
-	Config       *config.Config
-	Logger       *slog.Logger
-	DataStore    *storage.DataStore
-	SessionStore storage.SessionStore
-	PKCEStore    storage.PKCEStore
-	JWTManager   *utils.JWTManager // Add JWTManager
+	Config         *config.Config
+	Logger         *slog.Logger
+	DataStore      *storage.DataStore
+	SessionStore   storage.SessionStore
+	PKCEStore      storage.PKCEStore
+	JWTManager     *utils.JWTManager
+	ClientService  *services.ClientService
+	AuthService    *services.AuthService
+	TokenService   *services.TokenService
+	PKCEService    *services.PKCEService
+	SessionService *services.SessionService
 }
 
 func main() {
-	// Load configuration
+	// ... (config and logger setup remains the same)
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		slog.Error("Failed to load configuration", "error", err)
 		os.Exit(1)
 	}
-
-	// Setup Structured Logger
 	var logLevel slog.Level
 	switch cfg.Log.Level {
 	case "debug":
@@ -52,7 +56,7 @@ func main() {
 	slog.SetDefault(logger)
 	logger.Info("Configuration loaded and logger initialized")
 
-	// Establish MongoDB connection
+	// ... (database connections remain the same)
 	mongoClient, err := mongodb.NewConnection(cfg.Mongo)
 	if err != nil {
 		logger.Error("Failed to connect to MongoDB", "error", err)
@@ -60,19 +64,14 @@ func main() {
 	}
 	defer mongoClient.Disconnect(context.Background())
 	logger.Info("Successfully connected to MongoDB")
-
 	dbName := getDBNameFromURI(cfg.Mongo.URI)
 	db := mongoClient.Database(dbName)
-
-	// Initialize MongoDB-backed stores
 	dataStore := &storage.DataStore{
 		Client: mongodb.NewClientRepository(db),
 		User:   mongodb.NewUserRepository(db),
 		Token:  mongodb.NewTokenRepository(db),
 	}
 	logger.Info("MongoDB repositories initialized")
-
-	// Establish Redis connection
 	redisClient, err := redis.NewClient(cfg.Redis)
 	if err != nil {
 		logger.Error("Failed to connect to Redis", "error", err)
@@ -80,33 +79,40 @@ func main() {
 	}
 	defer redisClient.Close()
 	logger.Info("Successfully connected to Redis")
-
-	// Initialize Redis-backed stores
 	sessionStore := redis.NewSessionRepository(redisClient)
 	pkceStore := redis.NewPKCERepository(redisClient)
 	logger.Info("Redis repositories initialized")
-
-	// Initialize JWT Manager
 	jwtManager := utils.NewJWTManager(cfg.JWT)
 	logger.Info("JWT Manager initialized")
 
-	// Create the main application container
+	// --- Initialize Services ---
+	clientService := services.NewClientService(dataStore.Client)
+	authService := services.NewAuthService(dataStore.User)
+	tokenService := services.NewTokenService(jwtManager, dataStore.Token)
+	pkceService := services.NewPKCEService(pkceStore)
+	sessionService := services.NewSessionService(sessionStore)
+	logger.Info("Core services initialized")
+
+	// --- Create the main application container ---
 	app := &App{
-		Config:       cfg,
-		Logger:       logger,
-		DataStore:    dataStore,
-		SessionStore: sessionStore,
-		PKCEStore:    pkceStore,
-		JWTManager:   jwtManager,
+		Config:         cfg,
+		Logger:         logger,
+		DataStore:      dataStore,
+		SessionStore:   sessionStore,
+		PKCEStore:      pkceStore,
+		JWTManager:     jwtManager,
+		ClientService:  clientService,
+		AuthService:    authService,
+		TokenService:   tokenService,
+		PKCEService:    pkceService,
+		SessionService: sessionService,
 	}
 
-	// We will replace this simple server with a proper router and handlers soon.
+	// ... (HTTP server setup remains the same for now)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "OAuth2 Provider is running.")
 	})
-
 	logger.Info("Starting server", "address", fmt.Sprintf("%s:%d", app.Config.Server.Host, app.Config.Server.Port))
-
 	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", app.Config.Server.Host, app.Config.Server.Port), nil); err != nil {
 		logger.Error("Server failed to start", "error", err)
 		os.Exit(1)
