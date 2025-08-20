@@ -16,6 +16,16 @@ import (
 	"github.com/aminshahid573/oauth2-provider/internal/utils"
 )
 
+// App holds application-wide dependencies.
+type App struct {
+	Config       *config.Config
+	Logger       *slog.Logger
+	DataStore    *storage.DataStore
+	SessionStore storage.SessionStore
+	PKCEStore    storage.PKCEStore
+	JWTManager   *utils.JWTManager // Add JWTManager
+}
+
 func main() {
 	// Load configuration
 	cfg, err := config.LoadConfig()
@@ -24,7 +34,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// --- Setup Structured Logger ---
+	// Setup Structured Logger
 	var logLevel slog.Level
 	switch cfg.Log.Level {
 	case "debug":
@@ -38,9 +48,8 @@ func main() {
 	default:
 		logLevel = slog.LevelInfo
 	}
-
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
-	slog.SetDefault(logger) // Set as the default logger
+	slog.SetDefault(logger)
 	logger.Info("Configuration loaded and logger initialized")
 
 	// Establish MongoDB connection
@@ -56,14 +65,10 @@ func main() {
 	db := mongoClient.Database(dbName)
 
 	// Initialize MongoDB-backed stores
-	clientStore := mongodb.NewClientRepository(db)
-	userStore := mongodb.NewUserRepository(db)
-	tokenStore := mongodb.NewTokenRepository(db)
-
 	dataStore := &storage.DataStore{
-		Client: clientStore,
-		User:   userStore,
-		Token:  tokenStore,
+		Client: mongodb.NewClientRepository(db),
+		User:   mongodb.NewUserRepository(db),
+		Token:  mongodb.NewTokenRepository(db),
 	}
 	logger.Info("MongoDB repositories initialized")
 
@@ -76,22 +81,33 @@ func main() {
 	defer redisClient.Close()
 	logger.Info("Successfully connected to Redis")
 
-	// We will replace this with a real router and handlers later.
-	http.HandleFunc("/test-error", func(w http.ResponseWriter, r *http.Request) {
-		// Simulate fetching a client that doesn't exist
-		_, err := dataStore.Client.GetByClientID(context.Background(), "non-existent-client")
-		if err != nil {
-			utils.HandleError(w, r, logger, err)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("This should not be reached"))
+	// Initialize Redis-backed stores
+	sessionStore := redis.NewSessionRepository(redisClient)
+	pkceStore := redis.NewPKCERepository(redisClient)
+	logger.Info("Redis repositories initialized")
+
+	// Initialize JWT Manager
+	jwtManager := utils.NewJWTManager(cfg.JWT)
+	logger.Info("JWT Manager initialized")
+
+	// Create the main application container
+	app := &App{
+		Config:       cfg,
+		Logger:       logger,
+		DataStore:    dataStore,
+		SessionStore: sessionStore,
+		PKCEStore:    pkceStore,
+		JWTManager:   jwtManager,
+	}
+
+	// We will replace this simple server with a proper router and handlers soon.
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "OAuth2 Provider is running.")
 	})
 
-	logger.Info("Starting server", "address", fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port))
+	logger.Info("Starting server", "address", fmt.Sprintf("%s:%d", app.Config.Server.Host, app.Config.Server.Port))
 
-	// We will replace this simple server later
-	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port), nil); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", app.Config.Server.Host, app.Config.Server.Port), nil); err != nil {
 		logger.Error("Server failed to start", "error", err)
 		os.Exit(1)
 	}
