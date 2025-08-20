@@ -13,8 +13,7 @@ import (
 type ClientStore interface {
 	GetByClientID(ctx context.Context, clientID string) (*models.Client, error)
 	Create(ctx context.Context, client *models.Client) error
-	Update(ctx context.Context, client *models.Client) error
-	Delete(ctx context.Context, clientID string) error
+	// Note: Update and Delete methods will be added here when needed for the admin panel.
 }
 
 // UserStore defines the interface for user data storage.
