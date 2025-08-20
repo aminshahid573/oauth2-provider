@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/aminshahid573/oauth2-provider/internal/models"
-	"github.com/aminshahid573/oauth2-provider/internal/storage"
+	"github.com/aminshahid573/oauth2-provider/internal/utils"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -31,7 +31,7 @@ func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*m
 	err := r.collection.FindOne(ctx, filter).Decode(&user)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, storage.ErrNotFound
+			return nil, utils.ErrNotFound
 		}
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id bson.ObjectID) (*models
 	err := r.collection.FindOne(ctx, filter).Decode(&user)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, storage.ErrNotFound
+			return nil, utils.ErrNotFound
 		}
 		return nil, err
 	}

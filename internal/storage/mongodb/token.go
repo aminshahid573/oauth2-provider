@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/aminshahid573/oauth2-provider/internal/models"
-	"github.com/aminshahid573/oauth2-provider/internal/storage"
+	"github.com/aminshahid573/oauth2-provider/internal/utils"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -41,7 +41,7 @@ func (r *TokenRepository) GetBySignature(ctx context.Context, signature string) 
 	err := r.collection.FindOne(ctx, filter).Decode(&token)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, storage.ErrNotFound
+			return nil, utils.ErrNotFound
 		}
 		return nil, err
 	}

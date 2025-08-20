@@ -4,32 +4,54 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
+	"net/http"
+	"os"
 	"strings"
 
 	"github.com/aminshahid573/oauth2-provider/internal/config"
 	"github.com/aminshahid573/oauth2-provider/internal/storage"
 	"github.com/aminshahid573/oauth2-provider/internal/storage/mongodb"
 	"github.com/aminshahid573/oauth2-provider/internal/storage/redis"
+	"github.com/aminshahid573/oauth2-provider/internal/utils"
 )
 
 func main() {
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		slog.Error("Failed to load configuration", "error", err)
+		os.Exit(1)
 	}
-	fmt.Println("Configuration loaded successfully!")
+
+	// --- Setup Structured Logger ---
+	var logLevel slog.Level
+	switch cfg.Log.Level {
+	case "debug":
+		logLevel = slog.LevelDebug
+	case "info":
+		logLevel = slog.LevelInfo
+	case "warn":
+		logLevel = slog.LevelWarn
+	case "error":
+		logLevel = slog.LevelError
+	default:
+		logLevel = slog.LevelInfo
+	}
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}))
+	slog.SetDefault(logger) // Set as the default logger
+	logger.Info("Configuration loaded and logger initialized")
 
 	// Establish MongoDB connection
 	mongoClient, err := mongodb.NewConnection(cfg.Mongo)
 	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
+		logger.Error("Failed to connect to MongoDB", "error", err)
+		os.Exit(1)
 	}
 	defer mongoClient.Disconnect(context.Background())
-	fmt.Println("Successfully connected to MongoDB!")
+	logger.Info("Successfully connected to MongoDB")
 
-	// Extract database name from URI for clarity
 	dbName := getDBNameFromURI(cfg.Mongo.URI)
 	db := mongoClient.Database(dbName)
 
@@ -38,30 +60,44 @@ func main() {
 	userStore := mongodb.NewUserRepository(db)
 	tokenStore := mongodb.NewTokenRepository(db)
 
-	// Create the main data store container
 	dataStore := &storage.DataStore{
 		Client: clientStore,
 		User:   userStore,
 		Token:  tokenStore,
 	}
-	fmt.Println("MongoDB repositories initialized.")
-	_ = dataStore // Use dataStore to avoid unused variable error for now
+	logger.Info("MongoDB repositories initialized")
 
 	// Establish Redis connection
 	redisClient, err := redis.NewClient(cfg.Redis)
 	if err != nil {
-		log.Fatalf("Failed to connect to Redis: %v", err)
+		logger.Error("Failed to connect to Redis", "error", err)
+		os.Exit(1)
 	}
 	defer redisClient.Close()
-	fmt.Println("Successfully connected to Redis!")
+	logger.Info("Successfully connected to Redis")
 
-	// --- Application startup logic will go here in the future ---
-	fmt.Println("Application is ready to start. (Terminating for now)")
+	// We will replace this with a real router and handlers later.
+	http.HandleFunc("/test-error", func(w http.ResponseWriter, r *http.Request) {
+		// Simulate fetching a client that doesn't exist
+		_, err := dataStore.Client.GetByClientID(context.Background(), "non-existent-client")
+		if err != nil {
+			utils.HandleError(w, r, logger, err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("This should not be reached"))
+	})
+
+	logger.Info("Starting server", "address", fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port))
+
+	// We will replace this simple server later
+	if err := http.ListenAndServe(fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port), nil); err != nil {
+		logger.Error("Server failed to start", "error", err)
+		os.Exit(1)
+	}
 }
 
-// getDBNameFromURI is a helper to extract the database name from the MongoDB URI.
 func getDBNameFromURI(uri string) string {
-	// A simple heuristic: find the last '/' and check for '?'
 	if lastSlash := strings.LastIndex(uri, "/"); lastSlash != -1 {
 		dbPart := uri[lastSlash+1:]
 		if qIndex := strings.Index(dbPart, "?"); qIndex != -1 {
@@ -69,6 +105,5 @@ func getDBNameFromURI(uri string) string {
 		}
 		return dbPart
 	}
-	// Default if parsing fails
 	return "oauth2_provider"
 }
