@@ -52,3 +52,87 @@
 .btn-primary:hover {
     background-color: #0056b3;
 }
+
+.error-box {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+}
+
+.error-text {
+    color: #dc3545;
+    font-size: 0.875em;
+    margin-top: 0.25rem;
+    display: block;
+}
+
+/* conset page css */
+.consent-card {
+    text-align: left;
+}
+
+.consent-card h1 {
+    text-align: center;
+}
+
+.consent-card p {
+    text-align: center;
+}
+
+.scope-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 1.5rem 0;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+}
+
+.scope-list li {
+    padding: 1rem 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.scope-list li:last-child {
+    border-bottom: none;
+}
+
+.scope-list strong {
+    display: block;
+    color: #333;
+}
+
+.consent-footer {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 1.5rem;
+}
+
+.button-group {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.button-group button {
+    width: 100%;
+}
+
+.btn-secondary {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #333;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-secondary:hover {
+    background-color: #f0f0f0;
+}

@@ -1,0 +1,44 @@
+<!-- File: web/templates/auth/consent.html -->
+{{ define "title" }}Authorize Application{{ end }}
+
+{{ define "styles" }}
+    <link rel="stylesheet" href="/static/css/auth.css">
+{{ end }}
+
+{{ define "main" }}
+<div class="auth-card consent-card">
+    <!-- In a real app, you might show the client's logo here -->
+    <h1>Authorize "{{ .Data.ClientName }}"</h1>
+    <p>This application would like to:</p>
+    
+    <ul class="scope-list">
+        {{ range .Data.Scopes }}
+            <li><strong>{{ .Name }}</strong>: {{ .Description }}</li>
+        {{ else }}
+            <li>Request no special permissions.</li>
+        {{ end }}
+    </ul>
+
+    <p class="consent-footer">By clicking "Allow", you allow this app to use your information in accordance with their terms of service and privacy policy.</p>
+    
+    <form action="/oauth2/authorize" method="POST" novalidate>
+        {{ .CSRFField }}
+
+        <!-- Pass through all the original query parameters as hidden fields -->
+        {{ range $key, $values := .Data.QueryParams }}
+            {{ range $values }}
+                <input type="hidden" name="{{ $key }}" value="{{ . }}">
+            {{ end }}
+        {{ end }}
+
+        <div class="button-group">
+            <button type="submit" name="consent" value="deny" class="btn-secondary">Deny</button>
+            <button type="submit" name="consent" value="allow" class="btn-primary">Allow</button>
+        </div>
+    </form>
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+<!-- No page-specific scripts needed -->
+{{ end }}

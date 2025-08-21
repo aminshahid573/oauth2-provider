@@ -8,19 +8,37 @@
 <div class="auth-card">
     <h1>Sign In</h1>
     <p>to continue to Your Application</p>
+
+    <!-- Display generic credentials error -->
+    {{ with .Data.Validator }}
+        {{ if .Errors.credentials }}
+            <div class="error-box">{{ .Errors.credentials }}</div>
+        {{ end }}
+    {{ end }}
     
     <form action="/login" method="POST" novalidate>
-        <!-- This is the CSRF token field -->
         {{ .CSRFField }}
 
         <div class="form-group">
             <label for="username">Username</label>
-            <input type="text" id="username" name="username" required>
+            <input type="text" id="username" name="username" value="{{ .Data.Username }}" required>
+            <!-- Display field-specific error -->
+            {{ with .Data.Validator }}
+                {{ if .Errors.username }}
+                    <span class="error-text">{{ .Errors.username }}</span>
+                {{ end }}
+            {{ end }}
         </div>
         
         <div class="form-group">
             <label for="password">Password</label>
             <input type="password" id="password" name="password" required>
+            <!-- Display field-specific error -->
+            {{ with .Data.Validator }}
+                {{ if .Errors.password }}
+                    <span class="error-text">{{ .Errors.password }}</span>
+                {{ end }}
+            {{ end }}
         </div>
         
         <button type="submit" class="btn-primary">Sign In</button>

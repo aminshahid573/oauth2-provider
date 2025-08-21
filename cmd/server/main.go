@@ -35,6 +35,7 @@ type App struct {
 	TokenService   *services.TokenService
 	PKCEService    *services.PKCEService
 	SessionService *services.SessionService
+	ScopeService   *services.ScopeService
 }
 
 func main() {
@@ -95,6 +96,7 @@ func run() error {
 	tokenService := services.NewTokenService(jwtManager, dataStore.Token)
 	pkceService := services.NewPKCEService(pkceStore)
 	sessionService := services.NewSessionService(sessionStore)
+	scopeService := services.NewScopeService()
 	logger.Info("core services initialized")
 
 	// --- Template Cache ---
@@ -118,6 +120,7 @@ func run() error {
 		TokenService:   tokenService,
 		PKCEService:    pkceService,
 		SessionService: sessionService,
+		ScopeService:   scopeService,
 	}
 
 	// --- HTTP Server ---
@@ -196,5 +199,8 @@ func (a *App) ToServerDependencies() server.AppDependencies {
 		CSRFKey:        a.Config.CSRF.AuthKey,
 		AuthService:    a.AuthService,
 		SessionService: a.SessionService,
+		ScopeService:   a.ScopeService,
+		BaseURL:        a.Config.BaseURL,
+		AppEnv:         a.Config.AppEnv,
 	}
 }
