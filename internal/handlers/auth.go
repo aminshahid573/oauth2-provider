@@ -3,20 +3,21 @@ package handlers
 import (
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 
+	"github.com/aminshahid573/oauth2-provider/internal/middleware"
 	"github.com/aminshahid573/oauth2-provider/internal/services"
 	"github.com/aminshahid573/oauth2-provider/internal/utils"
 )
 
 // AuthHandler handles OAuth2 authorization and token requests.
 type AuthHandler struct {
-	logger         *slog.Logger
-	templateCache  utils.TemplateCache
-	clientService  *services.ClientService
-	scopeService   *services.ScopeService
-	sessionService *services.SessionService
-	// We will add more services later
+	logger        *slog.Logger
+	templateCache utils.TemplateCache
+	clientService *services.ClientService
+	scopeService  *services.ScopeService
+	tokenService  *services.TokenService // Add TokenService
 }
 
 // NewAuthHandler creates a new AuthHandler.
@@ -25,40 +26,41 @@ func NewAuthHandler(
 	templateCache utils.TemplateCache,
 	clientService *services.ClientService,
 	scopeService *services.ScopeService,
-	sessionService *services.SessionService,
+	tokenService *services.TokenService, // Add TokenService
 ) *AuthHandler {
 	return &AuthHandler{
-		logger:         logger,
-		templateCache:  templateCache,
-		clientService:  clientService,
-		scopeService:   scopeService,
-		sessionService: sessionService,
+		logger:        logger,
+		templateCache: templateCache,
+		clientService: clientService,
+		scopeService:  scopeService,
+		tokenService:  tokenService,
 	}
 }
 
-// Authorize handles the GET request to the authorization endpoint.
-// It validates the request and shows the login or consent page.
-func (h *AuthHandler) Authorize(w http.ResponseWriter, r *http.Request) {
-	// TODO: Check if user is logged in via session cookie.
-	// If not logged in, redirect to /login with the original query params.
+// AuthorizeFlow is a single handler that routes to GET or POST logic.
+func (h *AuthHandler) AuthorizeFlow(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		h.showConsentPage(w, r)
+	} else if r.Method == http.MethodPost {
+		h.handleConsent(w, r)
+	} else {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	}
+}
 
-	// 1. Extract and validate query parameters.
+// showConsentPage handles the GET request to the authorization endpoint.
+func (h *AuthHandler) showConsentPage(w http.ResponseWriter, r *http.Request) {
 	queryParams := r.URL.Query()
 	clientID := queryParams.Get("client_id")
 	redirectURI := queryParams.Get("redirect_uri")
 	responseType := queryParams.Get("response_type")
 	scope := queryParams.Get("scope")
-	// state := queryParams.Get("state") // Important for security
 
-	// Basic validation
 	if clientID == "" || redirectURI == "" || responseType != "code" {
-		// In a real scenario, you would redirect to the client's redirect_uri with an error.
-		// For now, we show a simple error.
 		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
 		return
 	}
 
-	// 2. Validate the client.
 	client, err := h.clientService.GetClient(r.Context(), clientID)
 	if err != nil {
 		utils.HandleError(w, r, h.logger, utils.ErrInvalidClient)
@@ -67,21 +69,70 @@ func (h *AuthHandler) Authorize(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: Validate redirect_uri against the client's registered URIs.
 
-	// 3. Validate scopes.
 	requestedScopes := strings.Fields(scope)
 	if !h.scopeService.ValidateScopes(requestedScopes) {
 		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
 		return
 	}
 
-	// 4. Render the consent page.
 	scopeDetails := h.scopeService.GetScopeDetails(requestedScopes)
-
 	data := map[string]any{
 		"ClientName":  client.Name,
 		"Scopes":      scopeDetails,
-		"QueryParams": queryParams, // Pass all params to the form
+		"QueryParams": queryParams,
+	}
+	h.templateCache.Render(w, r, "consent.html", data)
+}
+
+// handleConsent handles the POST request from the consent form.
+func (h *AuthHandler) handleConsent(w http.ResponseWriter, r *http.Request) {
+	user, ok := middleware.GetUserFromContext(r)
+	if !ok {
+		utils.HandleError(w, r, h.logger, utils.ErrInternal) // Should not happen if middleware is applied
+		return
 	}
 
-	h.templateCache.Render(w, r, "consent.html", data)
+	if err := r.ParseForm(); err != nil {
+		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		return
+	}
+
+	// Re-validate parameters from the form
+	clientID := r.PostForm.Get("client_id")
+	redirectURIStr := r.PostForm.Get("redirect_uri")
+	state := r.PostForm.Get("state")
+	scope := r.PostForm.Get("scope")
+
+	redirectURL, err := url.Parse(redirectURIStr)
+	if err != nil {
+		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		return
+	}
+	query := redirectURL.Query()
+
+	// If the user denied access, redirect with an error.
+	if r.PostForm.Get("consent") != "allow" {
+		query.Set("error", "access_denied")
+		if state != "" {
+			query.Set("state", state)
+		}
+		redirectURL.RawQuery = query.Encode()
+		http.Redirect(w, r, redirectURL.String(), http.StatusSeeOther)
+		return
+	}
+
+	// If the user allowed access, generate an authorization code.
+	requestedScopes := strings.Fields(scope)
+	code, err := h.tokenService.GenerateAndStoreAuthorizationCode(r.Context(), user.ID.Hex(), clientID, requestedScopes)
+	if err != nil {
+		utils.HandleError(w, r, h.logger, err)
+		return
+	}
+
+	query.Set("code", code)
+	if state != "" {
+		query.Set("state", state)
+	}
+	redirectURL.RawQuery = query.Encode()
+	http.Redirect(w, r, redirectURL.String(), http.StatusSeeOther)
 }

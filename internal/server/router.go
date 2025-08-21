@@ -7,7 +7,9 @@ import (
 	"net/http"
 
 	"github.com/aminshahid573/oauth2-provider/internal/handlers"
+	"github.com/aminshahid573/oauth2-provider/internal/middleware"
 	"github.com/aminshahid573/oauth2-provider/internal/services" // Import services
+	"github.com/aminshahid573/oauth2-provider/internal/storage"
 	"github.com/aminshahid573/oauth2-provider/internal/utils"
 	"github.com/aminshahid573/oauth2-provider/web"
 	"github.com/gorilla/csrf"
@@ -20,8 +22,10 @@ type AppDependencies struct {
 	CSRFKey        string
 	AuthService    *services.AuthService
 	SessionService *services.SessionService
-	ClientService  *services.ClientService // Added
-	ScopeService   *services.ScopeService  // Added
+	ClientService  *services.ClientService
+	ScopeService   *services.ScopeService
+	TokenService   *services.TokenService
+	UserStore      storage.UserStore
 	BaseURL        string
 	AppEnv         string
 }
@@ -50,6 +54,9 @@ func NewRouter(deps AppDependencies) http.Handler {
 	staticFS, _ := fs.Sub(web.Static, "static")
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
+	// --- Initialize Middleware ---
+	authMiddleware := middleware.NewAuthMiddleware(deps.Logger, deps.SessionService, deps.UserStore)
+
 	// --- Frontend Handlers ---
 	frontendHandler := handlers.NewFrontendHandler(deps.Logger, deps.TemplateCache, deps.AuthService, deps.SessionService, deps.ScopeService)
 	mux.HandleFunc("GET /login", frontendHandler.LoginPage)
@@ -61,15 +68,16 @@ func NewRouter(deps AppDependencies) http.Handler {
 		deps.TemplateCache,
 		deps.ClientService,
 		deps.ScopeService,
-		deps.SessionService,
+		deps.TokenService,
 	)
-	mux.HandleFunc("GET /oauth2/authorize", authHandler.Authorize)
-	// mux.HandleFunc("POST /oauth2/authorize", authHandler.HandleConsent) // Will be added next
 
-	// --- Placeholder for admin dashboard ---
-	mux.HandleFunc("GET /admin/dashboard", func(w http.ResponseWriter, r *http.Request) {
+	// The AuthorizeFlow handler is now protected by the auth middleware.
+	mux.Handle("/oauth2/authorize", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.AuthorizeFlow)))
+
+	// --- Placeholder for admin dashboard (now also protected) ---
+	mux.Handle("/admin/dashboard", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Welcome to the dashboard!"))
-	})
+	})))
 
 	// --- Middleware Configuration ---
 	var handler http.Handler = mux

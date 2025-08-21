@@ -201,6 +201,8 @@ func (a *App) ToServerDependencies() server.AppDependencies {
 		SessionService: a.SessionService,
 		ClientService:  a.ClientService,
 		ScopeService:   a.ScopeService,
+		TokenService:   a.TokenService,
+		UserStore:      a.DataStore.User,
 		BaseURL:        a.Config.BaseURL,
 		AppEnv:         a.Config.AppEnv,
 	}
