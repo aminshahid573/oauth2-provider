@@ -74,6 +74,9 @@ func NewRouter(deps AppDependencies) http.Handler {
 	// The AuthorizeFlow handler is now protected by the auth middleware.
 	mux.Handle("/oauth2/authorize", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.AuthorizeFlow)))
 
+	// The /token endpoint is for clients, so it's NOT protected by session auth.
+	mux.HandleFunc("POST /oauth2/token", authHandler.Token)
+
 	// --- Placeholder for admin dashboard (now also protected) ---
 	mux.Handle("/admin/dashboard", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Welcome to the dashboard!"))

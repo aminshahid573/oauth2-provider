@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/aminshahid573/oauth2-provider/internal/services"
 	"github.com/aminshahid573/oauth2-provider/internal/utils"
@@ -31,7 +32,14 @@ func NewFrontendHandler(logger *slog.Logger, templateCache utils.TemplateCache, 
 
 // LoginPage serves the user login page.
 func (h *FrontendHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
-	h.templateCache.Render(w, r, "login.html", nil)
+	// Extract the return_to parameter from the query string.
+	returnTo := r.URL.Query().Get("return_to")
+
+	// Pass it to the template.
+	data := map[string]any{
+		"ReturnTo": returnTo,
+	}
+	h.templateCache.Render(w, r, "login.html", data)
 }
 
 // Login handles the submission of the login form.
@@ -97,7 +105,14 @@ func (h *FrontendHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// 6. Redirect the user.
-	// For now, we'll redirect to a placeholder dashboard.
-	// Later, this will redirect back to the OAuth2 flow.
+	returnTo := r.PostForm.Get("return_to")
+
+	// Security check: Ensure the return_to URL is a local path to prevent open redirect vulnerabilities.
+	if returnTo != "" && strings.HasPrefix(returnTo, "/") {
+		http.Redirect(w, r, returnTo, http.StatusSeeOther)
+		return
+	}
+
+	// If no valid return_to is provided, redirect to the default dashboard.
 	http.Redirect(w, r, "/admin/dashboard", http.StatusSeeOther)
 }

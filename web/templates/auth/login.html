@@ -1,7 +1,7 @@
 {{ define "title" }}Login{{ end }}
 
 {{ define "styles" }}
-    <link rel="stylesheet" href="/static/css/auth.css">
+<link rel="stylesheet" href="/static/css/auth.css">
 {{ end }}
 
 {{ define "main" }}
@@ -11,36 +11,40 @@
 
     <!-- Display generic credentials error -->
     {{ with .Data.Validator }}
-        {{ if .Errors.credentials }}
-            <div class="error-box">{{ .Errors.credentials }}</div>
-        {{ end }}
+    {{ if .Errors.credentials }}
+    <div class="error-box">{{ .Errors.credentials }}</div>
     {{ end }}
-    
+    {{ end }}
+
     <form action="/login" method="POST" novalidate>
         {{ .CSRFField }}
+
+        <!-- This hidden field preserves the original URL you were trying to access. -->
+        <input type="hidden" name="return_to" value="{{ .Data.ReturnTo }}">
+
 
         <div class="form-group">
             <label for="username">Username</label>
             <input type="text" id="username" name="username" value="{{ .Data.Username }}" required>
             <!-- Display field-specific error -->
             {{ with .Data.Validator }}
-                {{ if .Errors.username }}
-                    <span class="error-text">{{ .Errors.username }}</span>
-                {{ end }}
+            {{ if .Errors.username }}
+            <span class="error-text">{{ .Errors.username }}</span>
+            {{ end }}
             {{ end }}
         </div>
-        
+
         <div class="form-group">
             <label for="password">Password</label>
             <input type="password" id="password" name="password" required>
             <!-- Display field-specific error -->
             {{ with .Data.Validator }}
-                {{ if .Errors.password }}
-                    <span class="error-text">{{ .Errors.password }}</span>
-                {{ end }}
+            {{ if .Errors.password }}
+            <span class="error-text">{{ .Errors.password }}</span>
+            {{ end }}
             {{ end }}
         </div>
-        
+
         <button type="submit" class="btn-primary">Sign In</button>
     </form>
 </div>
