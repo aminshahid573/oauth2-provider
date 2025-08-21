@@ -18,6 +18,7 @@ type Config struct {
 	Redis   RedisConfig  `mapstructure:",squash"`
 	JWT     JWTConfig    `mapstructure:",squash"`
 	Log     LogConfig    `mapstructure:",squash"`
+	CSRF    CSRFConfig   `mapstructure:",squash"`
 	BaseURL string       `mapstructure:"BASE_URL" validate:"required,url"`
 }
 
@@ -54,6 +55,11 @@ type JWTConfig struct {
 	RefreshTokenLifespan time.Duration
 }
 
+// CSRFConfig holds CSRF protection configuration.
+type CSRFConfig struct {
+	AuthKey string `mapstructure:"CSRF_AUTH_KEY" validate:"required,len=32"`
+}
+
 // LogConfig holds logging configuration.
 type LogConfig struct {
 	Level string `mapstructure:"LOG_LEVEL" validate:"required,oneof=debug info warn error"`
@@ -70,6 +76,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("JWT_REFRESH_TOKEN_LIFESPAN_HOURS", 168)
 	viper.SetDefault("JWT_ISSUER", "oauth2-provider")
 	viper.SetDefault("BASE_URL", "http://localhost:8080")
+	viper.SetDefault("CSRF_AUTH_KEY", "01234567890123456789012345678901")
 
 	// Tell viper to look for a file named .env in the current directory
 	viper.AddConfigPath(".")

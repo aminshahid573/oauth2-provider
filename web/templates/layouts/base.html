@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Use the "title" template defined in the page -->
+    <title>{{ template "title" . }}</title>
+    <link rel="stylesheet" href="/static/css/common.css">
+    <!-- Use the "styles" template defined in the page -->
+    {{ template "styles" . }}
+</head>
+<body>
+    <div class="container">
+        <!-- Use the "main" template defined in the page -->
+        {{ template "main" . }}
+    </div>
+    <!-- Use the "scripts" template defined in the page -->
+    {{ template "scripts" . }}
+</body>
+</html>
