@@ -199,6 +199,7 @@ func (a *App) ToServerDependencies() server.AppDependencies {
 		CSRFKey:        a.Config.CSRF.AuthKey,
 		AuthService:    a.AuthService,
 		SessionService: a.SessionService,
+		ClientService:  a.ClientService,
 		ScopeService:   a.ScopeService,
 		BaseURL:        a.Config.BaseURL,
 		AppEnv:         a.Config.AppEnv,

@@ -20,7 +20,8 @@ type AppDependencies struct {
 	CSRFKey        string
 	AuthService    *services.AuthService
 	SessionService *services.SessionService
-	ScopeService   *services.ScopeService
+	ClientService  *services.ClientService // Added
+	ScopeService   *services.ScopeService  // Added
 	BaseURL        string
 	AppEnv         string
 }
@@ -41,7 +42,6 @@ func debugHeaders(next http.Handler, logger *slog.Logger) http.Handler {
 
 // NewRouter creates and configures the main application router.
 func NewRouter(deps AppDependencies) http.Handler {
-	// Debug log the AppEnv to make sure it's set correctly
 	deps.Logger.Info("Router configuration", "AppEnv", deps.AppEnv, "BaseURL", deps.BaseURL)
 
 	mux := http.NewServeMux()
@@ -55,20 +55,29 @@ func NewRouter(deps AppDependencies) http.Handler {
 	mux.HandleFunc("GET /login", frontendHandler.LoginPage)
 	mux.HandleFunc("POST /login", frontendHandler.Login)
 
+	// --- OAuth2 Endpoints ---
+	authHandler := handlers.NewAuthHandler(
+		deps.Logger,
+		deps.TemplateCache,
+		deps.ClientService,
+		deps.ScopeService,
+		deps.SessionService,
+	)
+	mux.HandleFunc("GET /oauth2/authorize", authHandler.Authorize)
+	// mux.HandleFunc("POST /oauth2/authorize", authHandler.HandleConsent) // Will be added next
+
 	// --- Placeholder for admin dashboard ---
 	mux.HandleFunc("GET /admin/dashboard", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Welcome to the dashboard!"))
 	})
 
-	// --- CSRF Middleware Configuration ---
+	// --- Middleware Configuration ---
 	var handler http.Handler = mux
 
+	// Conditionally apply CSRF middleware based on environment
 	if deps.AppEnv == "development" {
-		// In development, we'll disable CSRF protection entirely for easier testing
 		deps.Logger.Info("CSRF protection DISABLED for development environment")
-		// No CSRF middleware applied
 	} else {
-		// In production, apply full CSRF protection
 		csrfOpts := []csrf.Option{
 			csrf.Secure(true),
 			csrf.Path("/"),
@@ -76,7 +85,6 @@ func NewRouter(deps AppDependencies) http.Handler {
 			csrf.SameSite(csrf.SameSiteLaxMode),
 			csrf.TrustedOrigins([]string{deps.BaseURL}),
 		}
-
 		csrfMiddleware := csrf.Protect([]byte(deps.CSRFKey), csrfOpts...)
 		handler = csrfMiddleware(handler)
 		deps.Logger.Info("CSRF protection ENABLED for production environment")
