@@ -28,6 +28,8 @@ type AppDependencies struct {
 	UserStore      storage.UserStore
 	BaseURL        string
 	AppEnv         string
+
+	IntrospectionHandler *handlers.IntrospectionHandler
 }
 
 // debugHeaders is a middleware for logging request headers.
@@ -87,6 +89,9 @@ func NewRouter(deps AppDependencies) http.Handler {
 
 	deviceConsentPostHandler := http.HandlerFunc(authHandler.HandleDeviceConsent)
 	mux.Handle("POST /oauth2/authorize/device/consent", authMiddleware.RequireAuth(deviceConsentPostHandler))
+
+	// --- OAuth2 Metadata Endpoints ---
+	mux.HandleFunc("POST /oauth2/introspect", deps.IntrospectionHandler.Introspect)
 
 	// --- Placeholder for admin dashboard (now also protected) ---
 	mux.Handle("/admin/dashboard", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

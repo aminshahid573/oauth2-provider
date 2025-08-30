@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/aminshahid573/oauth2-provider/internal/config"
+	"github.com/aminshahid573/oauth2-provider/internal/handlers"
 	"github.com/aminshahid573/oauth2-provider/internal/server"
 	"github.com/aminshahid573/oauth2-provider/internal/services"
 	"github.com/aminshahid573/oauth2-provider/internal/storage"
@@ -36,6 +37,8 @@ type App struct {
 	PKCEService    *services.PKCEService
 	SessionService *services.SessionService
 	ScopeService   *services.ScopeService
+
+	IntrospectionHandler *handlers.IntrospectionHandler
 }
 
 func main() {
@@ -99,6 +102,10 @@ func run() error {
 	scopeService := services.NewScopeService()
 	logger.Info("core services initialized")
 
+	// --- Initialize Handlers ---
+	introspectionHandler := handlers.NewIntrospectionHandler(logger, clientService, jwtManager)
+	logger.Info("introspection handler initialized")
+
 	// --- Template Cache ---
 	templateCache, err := utils.NewTemplateCache()
 	if err != nil {
@@ -121,6 +128,8 @@ func run() error {
 		PKCEService:    pkceService,
 		SessionService: sessionService,
 		ScopeService:   scopeService,
+
+		IntrospectionHandler: introspectionHandler,
 	}
 
 	// --- HTTP Server ---
@@ -205,5 +214,7 @@ func (a *App) ToServerDependencies() server.AppDependencies {
 		UserStore:      a.DataStore.User,
 		BaseURL:        a.Config.BaseURL,
 		AppEnv:         a.Config.AppEnv,
+
+		IntrospectionHandler: a.IntrospectionHandler,
 	}
 }
