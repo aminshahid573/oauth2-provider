@@ -31,6 +31,7 @@ type AppDependencies struct {
 
 	IntrospectionHandler *handlers.IntrospectionHandler
 	RevocationHandler    *handlers.RevocationHandler
+	JWKSHandler          *handlers.JWKSHandler
 }
 
 // debugHeaders is a middleware for logging request headers.
@@ -93,7 +94,10 @@ func NewRouter(deps AppDependencies) http.Handler {
 
 	// --- OAuth2 Metadata Endpoints ---
 	mux.HandleFunc("POST /oauth2/introspect", deps.IntrospectionHandler.Introspect)
-	mux.HandleFunc("POST /oauth2/revoke", deps.RevocationHandler.Revoke) // Add this route
+	mux.HandleFunc("POST /oauth2/revoke", deps.RevocationHandler.Revoke)
+
+	// The path is conventional and well-known to clients.
+	mux.HandleFunc("GET /.well-known/jwks.json", deps.JWKSHandler.ServeJWKS)
 
 	// --- Placeholder for admin dashboard (now also protected) ---
 	mux.Handle("/admin/dashboard", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

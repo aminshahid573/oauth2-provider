@@ -1,12 +1,17 @@
+// File: internal/utils/jwt.go
 package utils
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/aminshahid573/oauth2-provider/internal/config"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 )
 
 // CustomClaims defines the structure of our JWT claims.
@@ -18,23 +23,56 @@ type CustomClaims struct {
 
 // JWTManager handles the creation and validation of JWTs.
 type JWTManager struct {
-	secretKey            []byte
+	privateKey           *rsa.PrivateKey
+	publicKey            *rsa.PublicKey
+	keyID                string
 	issuer               string
 	accessTokenLifespan  time.Duration
 	refreshTokenLifespan time.Duration
 }
 
-// NewJWTManager creates a new JWTManager.
-func NewJWTManager(cfg config.JWTConfig) *JWTManager {
+// NewJWTManager creates a new JWTManager, generating a new RSA key pair on startup.
+func NewJWTManager(cfg config.JWTConfig) (*JWTManager, error) {
+	// In a real production system, you would load a private key from a secure location
+	// (like a file, environment variable, or secrets manager) instead of generating it.
+	// For this project, generating a key on startup is sufficient.
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate RSA key pair: %w", err)
+	}
+
+	// Generate a unique ID for this key.
+	keyID := uuid.NewString()
+
+	slog.Info("new RSA key pair generated for JWT signing", "key_id", keyID)
+
 	return &JWTManager{
-		secretKey:            []byte(cfg.SecretKey),
+		privateKey:           privateKey,
+		publicKey:            &privateKey.PublicKey,
+		keyID:                keyID,
 		issuer:               cfg.Issuer,
 		accessTokenLifespan:  cfg.AccessTokenLifespan,
 		refreshTokenLifespan: cfg.RefreshTokenLifespan,
-	}
+	}, nil
 }
 
-// GenerateAccessToken creates a new JWT access token.
+// GetPublicKeySet returns the public key as a JWK Set.
+func (m *JWTManager) GetPublicKeySet() (jwk.Set, error) {
+	key, err := jwk.FromRaw(m.publicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create JWK from public key: %w", err)
+	}
+
+	key.Set(jwk.KeyIDKey, m.keyID)
+	key.Set(jwk.AlgorithmKey, "RS256")
+	key.Set(jwk.KeyUsageKey, jwk.ForSignature)
+
+	keySet := jwk.NewSet()
+	keySet.AddKey(key)
+	return keySet, nil
+}
+
+// GenerateAccessToken creates a new JWT access token signed with the private key.
 func (m *JWTManager) GenerateAccessToken(userID, clientID string, scopes []string) (string, error) {
 	now := time.Now()
 	claims := CustomClaims{
@@ -43,7 +81,7 @@ func (m *JWTManager) GenerateAccessToken(userID, clientID string, scopes []strin
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    m.issuer,
 			Subject:   userID,
-			Audience:  jwt.ClaimStrings{clientID}, // Audience can be the client
+			Audience:  jwt.ClaimStrings{clientID},
 			ExpiresAt: jwt.NewNumericDate(now.Add(m.accessTokenLifespan)),
 			NotBefore: jwt.NewNumericDate(now),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -51,22 +89,27 @@ func (m *JWTManager) GenerateAccessToken(userID, clientID string, scopes []strin
 		},
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedToken, err := token.SignedString(m.secretKey)
+	// Use RS256 signing method
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	// Set the 'kid' (Key ID) in the header
+	token.Header["kid"] = m.keyID
+
+	signedToken, err := token.SignedString(m.privateKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to sign access token: %w", err)
 	}
 	return signedToken, nil
 }
 
-// VerifyToken parses and validates a token string.
+// VerifyToken parses and validates a token string using the public key.
 func (m *JWTManager) VerifyToken(tokenString string) (*CustomClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-		// Ensure the signing method is what we expect
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		// Ensure the signing method is what we expect (RS256)
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return m.secretKey, nil
+		// Return the public key for verification
+		return m.publicKey, nil
 	})
 
 	if err != nil {
@@ -80,7 +123,7 @@ func (m *JWTManager) VerifyToken(tokenString string) (*CustomClaims, error) {
 	return nil, fmt.Errorf("invalid token")
 }
 
-// GetAccessTokenLifespan returns the configured lifespan.
+// GetAccessTokenLifespan returns the configured lifespan for access tokens.
 func (m *JWTManager) GetAccessTokenLifespan() time.Duration {
 	return m.accessTokenLifespan
 }

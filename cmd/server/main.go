@@ -40,6 +40,7 @@ type App struct {
 
 	IntrospectionHandler *handlers.IntrospectionHandler
 	RevocationHandler    *handlers.RevocationHandler
+	JWKSHandler          *handlers.JWKSHandler
 }
 
 func main() {
@@ -94,7 +95,12 @@ func run() error {
 	logger.Info("data stores initialized")
 
 	// --- Initialize Services & Utilities ---
-	jwtManager := utils.NewJWTManager(cfg.JWT)
+	jwtManager, err := utils.NewJWTManager(cfg.JWT)
+	if err != nil {
+		logger.Error("failed to initialize JWT Manager", "error", err)
+		return fmt.Errorf("failed to initialize JWT Manager: %w", err)
+	}
+
 	clientService := services.NewClientService(dataStore.Client)
 	authService := services.NewAuthService(dataStore.User)
 	tokenService := services.NewTokenService(jwtManager, dataStore.Token)
@@ -106,6 +112,7 @@ func run() error {
 	// --- Initialize Handlers ---
 	introspectionHandler := handlers.NewIntrospectionHandler(logger, clientService, jwtManager)
 	revocationHandler := handlers.NewRevocationHandler(logger, clientService, tokenService)
+	jwksHandler := handlers.NewJWKSHandler(logger, jwtManager)
 	logger.Info("metadata handlers initialized")
 
 	// --- Template Cache ---
@@ -133,6 +140,7 @@ func run() error {
 
 		IntrospectionHandler: introspectionHandler,
 		RevocationHandler:    revocationHandler,
+		JWKSHandler:          jwksHandler,
 	}
 
 	// --- HTTP Server ---
@@ -220,5 +228,6 @@ func (a *App) ToServerDependencies() server.AppDependencies {
 
 		IntrospectionHandler: a.IntrospectionHandler,
 		RevocationHandler:    a.RevocationHandler,
+		JWKSHandler:          a.JWKSHandler,
 	}
 }
