@@ -4,6 +4,7 @@ package mongodb
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/aminshahid573/oauth2-provider/internal/models"
@@ -46,6 +47,36 @@ func (r *TokenRepository) GetBySignature(ctx context.Context, signature string) 
 		return nil, err
 	}
 	return &token, nil
+}
+
+// GetByUserCode retrieves a token by its user_code.
+func (r *TokenRepository) GetByUserCode(ctx context.Context, userCode string) (*models.Token, error) {
+	var token models.Token
+	filter := bson.M{"user_code": userCode, "type": models.TokenTypeDeviceCode}
+
+	err := r.collection.FindOne(ctx, filter).Decode(&token)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, utils.ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to find token by user code: %w", err)
+	}
+	return &token, nil
+}
+
+// Update updates an existing token document.
+func (r *TokenRepository) Update(ctx context.Context, token *models.Token) error {
+	filter := bson.M{"_id": token.ID}
+	update := bson.M{"$set": token}
+
+	result, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update token: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return utils.ErrNotFound
+	}
+	return nil
 }
 
 // DeleteBySignature removes a token from the database by its signature.

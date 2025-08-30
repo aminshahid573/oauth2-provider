@@ -79,3 +79,8 @@ func (m *JWTManager) VerifyToken(tokenString string) (*CustomClaims, error) {
 
 	return nil, fmt.Errorf("invalid token")
 }
+
+// GetAccessTokenLifespan returns the configured lifespan.
+func (m *JWTManager) GetAccessTokenLifespan() time.Duration {
+	return m.accessTokenLifespan
+}

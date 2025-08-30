@@ -19,12 +19,13 @@ const (
 type Client struct {
 	ID            bson.ObjectID `bson:"_id,omitempty"`
 	ClientID      string        `bson:"client_id"`
-	ClientSecret  string        `bson:"client_secret"` // This should be a hashed value
+	ClientSecret  string        `bson:"client_secret,omitempty"` // This should be a hashed value
 	Name          string        `bson:"name"`
 	RedirectURIs  []string      `bson:"redirect_uris"`
 	GrantTypes    []string      `bson:"grant_types"`
 	ResponseTypes []string      `bson:"response_types"`
 	Scopes        []string      `bson:"scopes"`
+	JWKSURL       string        `bson:"jwks_url,omitempty"`
 	CreatedAt     time.Time     `bson:"created_at"`
 	UpdatedAt     time.Time     `bson:"updated_at"`
 }

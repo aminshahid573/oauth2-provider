@@ -27,6 +27,8 @@ type UserStore interface {
 type TokenStore interface {
 	Save(ctx context.Context, token *models.Token) error
 	GetBySignature(ctx context.Context, signature string) (*models.Token, error)
+	GetByUserCode(ctx context.Context, userCode string) (*models.Token, error)
+	Update(ctx context.Context, token *models.Token) error
 	DeleteBySignature(ctx context.Context, signature string) error
 }
 

@@ -58,9 +58,11 @@ func NewRouter(deps AppDependencies) http.Handler {
 	authMiddleware := middleware.NewAuthMiddleware(deps.Logger, deps.SessionService, deps.UserStore)
 
 	// --- Frontend Handlers ---
-	frontendHandler := handlers.NewFrontendHandler(deps.Logger, deps.TemplateCache, deps.AuthService, deps.SessionService, deps.ScopeService)
+	frontendHandler := handlers.NewFrontendHandler(deps.Logger, deps.TemplateCache, deps.AuthService, deps.SessionService, deps.TokenService, deps.ClientService, deps.ScopeService)
 	mux.HandleFunc("GET /login", frontendHandler.LoginPage)
 	mux.HandleFunc("POST /login", frontendHandler.Login)
+
+	mux.Handle("/device", authMiddleware.RequireAuth(http.HandlerFunc(frontendHandler.DeviceFlow)))
 
 	// --- OAuth2 Endpoints ---
 	authHandler := handlers.NewAuthHandler(
@@ -76,6 +78,15 @@ func NewRouter(deps AppDependencies) http.Handler {
 
 	// The /token endpoint is for clients, so it's NOT protected by session auth.
 	mux.HandleFunc("POST /oauth2/token", authHandler.Token)
+
+	mux.HandleFunc("POST /oauth2/device_authorization", authHandler.DeviceAuthorization)
+
+	// Device Flow User-Facing Pages (requires login)
+	deviceConsentHandler := http.HandlerFunc(authHandler.DeviceConsentFlow)
+	mux.Handle("GET /oauth2/authorize/device", authMiddleware.RequireAuth(deviceConsentHandler))
+
+	deviceConsentPostHandler := http.HandlerFunc(authHandler.HandleDeviceConsent)
+	mux.Handle("POST /oauth2/authorize/device/consent", authMiddleware.RequireAuth(deviceConsentPostHandler))
 
 	// --- Placeholder for admin dashboard (now also protected) ---
 	mux.Handle("/admin/dashboard", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

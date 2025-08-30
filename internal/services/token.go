@@ -1,3 +1,4 @@
+// File: internal/services/token.go
 package services
 
 import (
@@ -5,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/aminshahid573/oauth2-provider/internal/models"
@@ -15,6 +17,7 @@ import (
 const (
 	AuthCodeLifespan     = 10 * time.Minute
 	RefreshTokenLifespan = 30 * 24 * time.Hour // 30 days
+	DeviceCodeLifespan   = 15 * time.Minute
 )
 
 // TokenService provides business logic for creating and managing tokens.
@@ -31,6 +34,20 @@ func NewTokenService(jwtManager *utils.JWTManager, tokenStore storage.TokenStore
 	}
 }
 
+// --- Public Helper Methods ---
+
+// HashToken creates a SHA-256 hash of a token string.
+func (s *TokenService) HashToken(token string) string {
+	return hashToken(token)
+}
+
+// GetAccessTokenLifespan returns the configured lifespan for access tokens.
+func (s *TokenService) GetAccessTokenLifespan() time.Duration {
+	return s.jwtManager.GetAccessTokenLifespan() // Assumes JWTManager exposes this
+}
+
+// --- Token Generation ---
+
 // GenerateAccessToken creates a new JWT access token.
 func (s *TokenService) GenerateAccessToken(userID, clientID string, scopes []string) (string, error) {
 	return s.jwtManager.GenerateAccessToken(userID, clientID, scopes)
@@ -38,111 +55,140 @@ func (s *TokenService) GenerateAccessToken(userID, clientID string, scopes []str
 
 // GenerateAndStoreAuthorizationCode creates a new authorization code and stores its hash.
 func (s *TokenService) GenerateAndStoreAuthorizationCode(ctx context.Context, userID, clientID string, scopes []string) (string, error) {
-	// Generate a cryptographically secure random string for the code.
 	code, err := utils.GenerateSecureToken(32)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate authorization code: %w", err)
 	}
-
-	// Create a signature (hash) of the code to store in the database.
-	// This is a security best practice: we don't store the raw code.
-	signature := hashToken(code)
-
 	token := &models.Token{
-		Signature: signature,
+		Signature: hashToken(code),
 		ClientID:  clientID,
 		UserID:    userID,
 		Scopes:    scopes,
 		ExpiresAt: time.Now().Add(AuthCodeLifespan),
 		Type:      models.TokenTypeAuthorizationCode,
 	}
-
 	if err := s.tokenStore.Save(ctx, token); err != nil {
 		return "", fmt.Errorf("failed to store authorization code: %w", err)
 	}
-
 	return code, nil
 }
 
 // GenerateAndStoreRefreshToken creates a new refresh token and stores its hash.
 func (s *TokenService) GenerateAndStoreRefreshToken(ctx context.Context, userID, clientID string, scopes []string) (string, error) {
-	// Generate a long, cryptographically secure random string for the token.
 	token, err := utils.GenerateSecureToken(64)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate refresh token: %w", err)
 	}
-
-	signature := hashToken(token)
-
 	refreshToken := &models.Token{
-		Signature: signature,
+		Signature: hashToken(token),
 		ClientID:  clientID,
 		UserID:    userID,
 		Scopes:    scopes,
 		ExpiresAt: time.Now().Add(RefreshTokenLifespan),
 		Type:      models.TokenTypeRefreshToken,
 	}
-
 	if err := s.tokenStore.Save(ctx, refreshToken); err != nil {
 		return "", fmt.Errorf("failed to store refresh token: %w", err)
 	}
-
 	return token, nil
 }
 
-// ValidateAndConsumeRefreshToken checks if a refresh token is valid.
-// Note: Refresh token rotation is a best practice, but for now, we'll just validate.
-func (s *TokenService) ValidateAndConsumeRefreshToken(ctx context.Context, tokenStr string) (*models.Token, error) {
-	signature := hashToken(tokenStr)
-
-	token, err := s.tokenStore.GetBySignature(ctx, signature)
+// GenerateAndStoreDeviceCode creates a new device and user code.
+func (s *TokenService) GenerateAndStoreDeviceCode(ctx context.Context, clientID string, scopes []string) (string, string, error) {
+	deviceCode, err := utils.GenerateSecureToken(64)
 	if err != nil {
-		return nil, fmt.Errorf("invalid refresh token: %w", err)
+		return "", "", fmt.Errorf("failed to generate device code: %w", err)
 	}
-
-	// In a simple implementation, we don't always delete the refresh token.
-	// For refresh token rotation, you would delete the old one and issue a new one.
-	// For now, we'll just check for expiration.
-
-	if time.Now().After(token.ExpiresAt) {
-		// If expired, we should delete it from the store.
-		_ = s.tokenStore.DeleteBySignature(ctx, signature)
-		return nil, fmt.Errorf("refresh token has expired")
+	userCode, err := utils.GenerateSecureToken(8)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate user code: %w", err)
 	}
-
-	if token.Type != models.TokenTypeRefreshToken {
-		return nil, fmt.Errorf("invalid token type provided")
+	token := &models.Token{
+		Signature: hashToken(deviceCode),
+		UserCode:  strings.ToUpper(userCode),
+		ClientID:  clientID,
+		Scopes:    scopes,
+		ExpiresAt: time.Now().Add(DeviceCodeLifespan),
+		Type:      models.TokenTypeDeviceCode,
+		Approved:  false,
 	}
+	if err := s.tokenStore.Save(ctx, token); err != nil {
+		return "", "", fmt.Errorf("failed to store device code: %w", err)
+	}
+	return deviceCode, token.UserCode, nil
+}
 
-	return token, nil
+// --- Token Validation and Retrieval ---
+
+// GetTokenBySignature retrieves a token by its signature.
+func (s *TokenService) GetTokenBySignature(ctx context.Context, signature string) (*models.Token, error) {
+	return s.tokenStore.GetBySignature(ctx, signature)
+}
+
+// GetTokenByUserCode retrieves a device code token by its user-facing code.
+func (s *TokenService) GetTokenByUserCode(ctx context.Context, userCode string) (*models.Token, error) {
+	return s.tokenStore.GetByUserCode(ctx, strings.ToUpper(userCode))
 }
 
 // ValidateAndConsumeAuthCode checks if an auth code is valid and deletes it.
 func (s *TokenService) ValidateAndConsumeAuthCode(ctx context.Context, code string) (*models.Token, error) {
 	signature := hashToken(code)
-
 	token, err := s.tokenStore.GetBySignature(ctx, signature)
 	if err != nil {
 		return nil, fmt.Errorf("invalid authorization code: %w", err)
 	}
-
-	// IMPORTANT: Immediately delete the code to prevent reuse (as per OAuth2 spec).
 	if err := s.tokenStore.DeleteBySignature(ctx, signature); err != nil {
-		// Log this error but continue, as the code is now effectively invalid.
-		// In a real system, you'd have more robust logging/alerting here.
 		fmt.Printf("WARN: failed to delete consumed auth code: %v\n", err)
 	}
-
 	if time.Now().After(token.ExpiresAt) {
 		return nil, fmt.Errorf("authorization code has expired")
 	}
-
 	if token.Type != models.TokenTypeAuthorizationCode {
 		return nil, fmt.Errorf("invalid token type provided")
 	}
-
 	return token, nil
 }
+
+// ValidateAndConsumeRefreshToken checks if a refresh token is valid.
+func (s *TokenService) ValidateAndConsumeRefreshToken(ctx context.Context, tokenStr string) (*models.Token, error) {
+	signature := hashToken(tokenStr)
+	token, err := s.tokenStore.GetBySignature(ctx, signature)
+	if err != nil {
+		return nil, fmt.Errorf("invalid refresh token: %w", err)
+	}
+	if time.Now().After(token.ExpiresAt) {
+		_ = s.tokenStore.DeleteBySignature(ctx, signature)
+		return nil, fmt.Errorf("refresh token has expired")
+	}
+	if token.Type != models.TokenTypeRefreshToken {
+		return nil, fmt.Errorf("invalid token type provided")
+	}
+	return token, nil
+}
+
+// ApproveDeviceCode marks a device code as approved by a user.
+func (s *TokenService) ApproveDeviceCode(ctx context.Context, userCode, userID string) (*models.Token, error) {
+	token, err := s.GetTokenByUserCode(ctx, userCode)
+	if err != nil {
+		return nil, err
+	}
+	if time.Now().After(token.ExpiresAt) {
+		return nil, fmt.Errorf("device code has expired")
+	}
+	token.Approved = true
+	token.UserID = userID
+	if err := s.tokenStore.Update(ctx, token); err != nil {
+		return nil, err
+	}
+	return token, nil
+}
+
+// DeleteTokenBySignature deletes a token by its signature.
+func (s *TokenService) DeleteTokenBySignature(ctx context.Context, signature string) error {
+	return s.tokenStore.DeleteBySignature(ctx, signature)
+}
+
+// --- Private Helpers ---
 
 // hashToken creates a SHA-256 hash of a token string.
 func hashToken(token string) string {

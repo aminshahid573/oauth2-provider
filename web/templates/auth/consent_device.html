@@ -1,0 +1,33 @@
+{{ define "title" }}Authorize Device{{ end }}
+
+{{ define "styles" }}
+    <link rel="stylesheet" href="/static/css/auth.css">
+{{ end }}
+
+{{ define "main" }}
+<div class="auth-card consent-card">
+    <h1>Authorize "{{ .Data.ClientName }}"</h1>
+    <p>This application, identified by the code <strong>{{ .Data.UserCode }}</strong>, would like to:</p>
+    
+    <ul class="scope-list">
+        {{ range .Data.Scopes }}
+            <li><strong>{{ .Name }}</strong>: {{ .Description }}</li>
+        {{ else }}
+            <li>Request no special permissions.</li>
+        {{ end }}
+    </ul>
+
+    <p class="consent-footer">By clicking "Allow", you allow this app to use your information.</p>
+    
+    <form action="/oauth2/authorize/device/consent" method="POST" novalidate>
+        {{ .CSRFField }}
+        <input type="hidden" name="user_code" value="{{ .Data.UserCode }}">
+        <div class="button-group">
+            <button type="submit" name="consent" value="deny" class="btn-secondary">Deny</button>
+            <button type="submit" name="consent" value="allow" class="btn-primary">Allow</button>
+        </div>
+    </form>
+</div>
+{{ end }}
+
+{{ define "scripts" }}{{ end }}

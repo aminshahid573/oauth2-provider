@@ -20,10 +20,12 @@ const (
 type Token struct {
 	ID        bson.ObjectID `bson:"_id,omitempty"`
 	Signature string        `bson:"signature"` // A hash of the actual token/code
+	UserCode  string        `bson:"user_code,omitempty"`
 	ClientID  string        `bson:"client_id"`
 	UserID    string        `bson:"user_id"`
 	Scopes    []string      `bson:"scopes"`
 	ExpiresAt time.Time     `bson:"expires_at"`
 	Type      TokenType     `bson:"type"`
 	CreatedAt time.Time     `bson:"created_at"`
+	Approved  bool          `bson:"approved,omitempty"`
 }

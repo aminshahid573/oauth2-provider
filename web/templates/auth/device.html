@@ -1,0 +1,29 @@
+{{ define "title" }}Activate Device{{ end }}
+
+{{ define "styles" }}
+    <link rel="stylesheet" href="/static/css/auth.css">
+{{ end }}
+
+{{ define "main" }}
+<div class="auth-card">
+    <h1>Activate Your Device</h1>
+    <p>Enter the code displayed on your device to sign in.</p>
+
+    {{ with .Data.Error }}
+        <div class="error-box">{{ . }}</div>
+    {{ end }}
+    
+    <form action="/device" method="POST" novalidate>
+        {{ .CSRFField }}
+        <div class="form-group">
+            <label for="user_code">Code</label>
+            <input type="text" id="user_code" name="user_code" required maxlength="10" style="text-transform:uppercase">
+        </div>
+        <button type="submit" class="btn-primary">Continue</button>
+    </form>
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+<!-- No page-specific scripts needed for this page -->
+{{ end }}
