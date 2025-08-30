@@ -16,7 +16,6 @@
 </p>
 
 ---
-
 ## Table of Contents
 
 - [Project Overview](#project-overview)
@@ -28,10 +27,14 @@
 - [API Endpoints](#api-endpoints)
   - [Authorization Endpoint](#1-authorization-endpoint-oauth2authorize)
   - [Token Endpoint](#2-token-endpoint-oauth2token)
+  - [Token Introspection Endpoint](#3-token-introspection-endpoint-oauth2introspect)
 - [Testing with `curl`](#testing-with-curl)
   - [Flow 1: Authorization Code Flow](#flow-1-authorization-code-flow)
   - [Flow 2: Client Credentials Flow](#flow-2-client-credentials-flow)
   - [Flow 3: Refresh Token Flow](#flow-3-refresh-token-flow)
+  - [Flow 4: Device Authorization Flow](#flow-4-device-authorization-flow)
+  - [Flow 5: JWT Bearer Token Flow](#flow-5-jwt-bearer-token-flow)
+  - [Endpoint Test: Token Introspection](#endpoint-test-token-introspection)
 - [Project Structure](#project-structure)
 - [Technology Stack](#technology-stack)
 
@@ -47,36 +50,38 @@ This project implements a full-featured OAuth2 server that can act as a central 
 - **Clean Architecture**: A well-defined separation of concerns between handlers, services, and storage layers.
 - **User-Facing Frontend**: Includes built-in pages for user login and application consent.
 
-### Supported OAuth2 Flows (Implemented so far)
+### Supported OAuth2 Flows & Features
 
-- [x] **Authorization Code Flow**: The standard flow for user-based authorization in web and mobile apps.
+- [x] **Authorization Code Flow**: For user-based authorization in web and mobile apps.
 - [x] **Client Credentials Flow**: For machine-to-machine (M2M) authentication.
-- [x] **Refresh Token Flow**: Allows clients to obtain new access tokens without user interaction.
+- [x] **Refresh Token Flow**: To obtain new access tokens without user interaction.
+- [x] **Device Authorization Flow**: For input-constrained devices like Smart TVs.
+- [x] **JWT Bearer Token Flow**: For high-security M2M authentication using public/private keys.
+- [x] **Token Introspection**: Allows resource servers to validate access tokens.
 
 ## Getting Started
 
 ### Prerequisites
 
 - **Go**: Version 1.22+
-- **Docker** & **Docker Compose**: To run the required MongoDB and Redis services.
-- **`make`** (Optional, for convenience): On Windows, you can install `make` via Chocolatey (`choco install make`) or Winget.
-- **`mongosh`** (Optional): For direct interaction with the MongoDB database.
-- **`curl`** and **`jq`**: For testing the API endpoints from the command line.
+- **Docker** & **Docker Compose**: To run MongoDB and Redis.
+- **`make`** (Optional): For convenience commands.
+- **`mongosh`** (Optional): For direct database interaction.
+- **`curl`** and **`jq`**: For testing API endpoints.
 
 ### Installation & Setup
 
 1.  **Clone the repository:**
     ```bash
-    git clone <not-publishe-yet>
+    git clone <not-published-yet>
     cd oauth2-provider
     ```
 
 2.  **Configure Environment Variables:**
-    Copy the example environment file and customize it.
     ```bash
     cp .env.example .env
     ```
-    Open the `.env` file and ensure the `JWT_SECRET_KEY` and `CSRF_AUTH_KEY` are set to strong, randomly generated 32-byte strings.
+    Open `.env` and set `JWT_SECRET_KEY` and `CSRF_AUTH_KEY` to strong, random values.
 
 3.  **Install Go Dependencies:**
     ```bash
@@ -84,137 +89,89 @@ This project implements a full-featured OAuth2 server that can act as a central 
     ```
 
 4.  **Start Backend Services:**
-    Use Docker Compose to start MongoDB and Redis in the background.
     ```bash
     docker-compose -f docker/docker-compose.yml up -d
     ```
-    *(Or `make docker-up` if you have `make` installed)*
 
 5.  **Seed the Database:**
-    You need to create at least one user and two clients to test the different flows. Connect to MongoDB using `mongosh` or a GUI like MongoDB Compass.
+    Connect to MongoDB (`mongosh "mongodb://root:password@localhost:27017"`) and run a script to create a test user and several clients. **You must generate your own unique bcrypt hashes for the secrets.**
 
-    ```bash
-    # Connect to the database
-    mongosh "mongodb://root:password@localhost:27017"
-    ```
-
-    Inside the `mongosh` shell, run the following commands. **Remember to generate your own bcrypt hashes for the secrets!**
-
-    ```javascript
-    use oauth2_provider;
-
-    // Create a test user (password: password123)
-    // Generate hash with: bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
-    db.users.insertOne({
-        username: "testuser",
-        hashed_password: "$2a$10$your/generated/bcrypt/hash/for/password123",
-        created_at: new Date(),
-        updated_at: new Date()
-    });
-
-    // Create a client for the Authorization Code Flow
-    // Generate hash for "test-secret"
-    db.clients.insertOne({
-        client_id: "test-client",
-        client_secret: "$2a$10$your/generated/bcrypt/hash/for/test-secret",
-        name: "My Awesome App",
-        redirect_uris: ["http://localhost:3000/callback"],
-        grant_types: ["authorization_code", "refresh_token"],
-        response_types: ["code"],
-        scopes: ["openid", "profile"],
-        created_at: new Date(),
-        updated_at: new Date()
-    });
-
-    // Create a client for the Client Credentials Flow
-    // Generate hash for "m2m-secret"
-    db.clients.insertOne({
-        client_id: "m2m-client",
-        client_secret: "$2a$10$your/generated/bcrypt/hash/for/m2m-secret",
-        name: "Internal API Service",
-        redirect_uris: [],
-        grant_types: ["client_credentials"],
-        response_types: [],
-        scopes: ["api:read", "api:write"],
-        created_at: new Date(),
-        updated_at: new Date()
-    });
-    ```
+    *(See the [Testing Guide](#testing-with-curl) for the full seed script and instructions.)*
 
 ## Running the Server
-
-Once the setup is complete, you can run the application server:
 
 ```bash
 go run ./cmd/server
 ```
-
-The server will be available at `http://localhost:8080`
+The server will be available at `http://localhost:8080`.
 
 ## API Endpoints
 
 ### 1. Authorization Endpoint: `/oauth2/authorize`
 
-This endpoint is the starting point for user-centric flows. It is browser-based and requires a logged-in user.
-
 - **Method**: `GET`, `POST`
-- **Authentication**: User session cookie (redirects to `/login` if not present).
-- **Description**:
-  - `GET`: Validates the client and scopes, then displays the consent page to the user.
-  - `POST`: Handles the user's "Allow" or "Deny" decision from the consent form. If allowed, it generates an authorization code and redirects to the client's `redirect_uri`.
-
-#### `GET` Request Parameters (Query String)
-
-| Parameter      | Required | Description                                          |
-| -------------- | -------- | ---------------------------------------------------- |
-| `response_type`| Yes      | Must be `code`.                                      |
-| `client_id`    | Yes      | The ID of the client application.                    |
-| `redirect_uri` | Yes      | The URL to redirect to after authorization.          |
-| `scope`        | No       | A space-delimited list of requested scopes.          |
-| `state`        | Yes      | An opaque value used to prevent CSRF attacks.        |
+- **Description**: The user-facing starting point for the Authorization Code Flow. Handles user login and consent.
 
 ### 2. Token Endpoint: `/oauth2/token`
 
-This is a backend API endpoint used by client applications to exchange codes or credentials for tokens.
+- **Method**: `POST`
+- **Description**: The central backend endpoint for clients to exchange codes or credentials for tokens. Supports `authorization_code`, `client_credentials`, `refresh_token`, `urn:ietf:params:oauth:grant-type:device_code`, and `urn:ietf:params:oauth:grant-type:jwt-bearer` grant types.
+
+### 3. Token Introspection Endpoint: `/oauth2/introspect`
 
 - **Method**: `POST`
-- **Content-Type**: `application/x-www-form-urlencoded`
-- **Description**: Issues `access_token` and optionally `refresh_token` based on the `grant_type`.
+- **Authentication**: HTTP Basic Auth (using the resource server's `client_id` and `client_secret`).
+- **Description**: Allows a client (acting as a resource server) to check the validity of an access token.
 
-#### `POST` Request Parameters (Form Body)
+#### Request Parameters (Form Body)
 
-| Parameter       | Required | Description                                                              |
-| --------------- | -------- | ------------------------------------------------------------------------ |
-| `grant_type`    | Yes      | The type of grant being requested (`authorization_code`, `client_credentials`, `refresh_token`). |
-| `code`          | If `authorization_code` | The authorization code received from the `/authorize` endpoint. |
-| `redirect_uri`  | If `authorization_code` | Must match the `redirect_uri` from the authorization request. |
-| `refresh_token` | If `refresh_token` | The refresh token used to obtain a new access token. |
-| `client_id`     | Yes      | The client's ID.                                                         |
-| `client_secret` | Yes      | The client's secret.                                                     |
-| `scope`         | No       | For `client_credentials`, a space-delimited list of scopes.              |
+| Parameter | Required | Description              |
+| --------- | -------- | ------------------------ |
+| `token`   | Yes      | The access token to check. |
+
+#### Success Response (`active: true`)
+
+```json
+{
+  "active": true,
+  "scope": "openid profile",
+  "client_id": "test-client",
+  "sub": "6675d3a...",
+  "exp": 1755855000,
+  "iat": 1755854100,
+  "nbf": 1755854100,
+  "iss": "oauth2-provider",
+  "aud": ["test-client"],
+  "jti": "...",
+  "token_type": "Bearer"
+}
+```
+
+#### Failure Response (`active: false`)
+
+```json
+{
+  "active": false
+}
+```
 
 ## Testing with `curl`
 
+*(This section assumes you have followed the database seeding instructions in the [Getting Started](#getting-started) guide.)*
+
 ### Flow 1: Authorization Code Flow
 
-1.  **Start the flow in your browser:**
-    ```
-    http://localhost:8080/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost:3000/callback&scope=openid%20profile&state=xyz123
-    ```
-2.  Log in as `testuser` / `password123`.
-3.  Click "Allow" on the consent page.
-4.  You will be redirected to a URL like `http://localhost:3000/callback?code=YOUR_CODE_HERE&state=xyz123`. Copy `YOUR_CODE_HERE`.
-
-5.  **Exchange the code for a token:**
+1.  **Start in browser:** `http://localhost:8080/oauth2/authorize?response_type=code&client_id=test-client&...`
+2.  Log in, grant consent, and copy the `code` from the redirect URL.
+3.  **Exchange code for tokens:**
     ```bash
     curl -X POST http://localhost:8080/oauth2/token \
     -d "grant_type=authorization_code" \
     -d "code=YOUR_CODE_HERE" \
-    -d "redirect_uri=http://localhost:3000/callback" \
     -d "client_id=test-client" \
     -d "client_secret=test-secret" | jq
     ```
-    You will receive an `access_token` and a `refresh_token`.
+    **Expected:** `access_token` and `refresh_token`.
 
 ### Flow 2: Client Credentials Flow
 
@@ -222,15 +179,13 @@ This is a backend API endpoint used by client applications to exchange codes or 
 curl -X POST http://localhost:8080/oauth2/token \
 -d "grant_type=client_credentials" \
 -d "client_id=m2m-client" \
--d "client_secret=m2m-secret" \
--d "scope=api:read" | jq
+-d "client_secret=m2m-secret" | jq
 ```
-You will receive an `access_token` valid for the requested scope.
+**Expected:** `access_token`.
 
 ### Flow 3: Refresh Token Flow
 
-Use the `refresh_token` you received from the Authorization Code Flow.
-
+Use the `refresh_token` from Flow 1.
 ```bash
 curl -X POST http://localhost:8080/oauth2/token \
 -d "grant_type=refresh_token" \
@@ -238,9 +193,52 @@ curl -X POST http://localhost:8080/oauth2/token \
 -d "client_id=test-client" \
 -d "client_secret=test-secret" | jq
 ```
-You will receive a new `access_token`.
+**Expected:** A new `access_token`.
 
-## Project Structure
+### Flow 4: Device Authorization Flow
+
+1.  **Get codes:**
+    ```bash
+    curl -X POST http://localhost:8080/oauth2/device_authorization \
+    -d "client_id=test-client" | jq
+    ```
+    Copy the `user_code` and `device_code`.
+2.  **In browser:** Go to `http://localhost:8080/device`, log in, enter the `user_code`, and grant consent.
+3.  **Poll for tokens:**
+    ```bash
+    curl -X POST http://localhost:8080/oauth2/token \
+    -d "grant_type=urn:ietf:params:oauth:grant-type:device_code" \
+    -d "device_code=YOUR_DEVICE_CODE_HERE" \
+    -d "client_id=test-client" | jq
+    ```
+    **Expected:** `access_token` and `refresh_token`.
+
+### Flow 5: JWT Bearer Token Flow
+
+Requires running the separate `jwt-client-simulator` tool. Follow the instructions printed by that tool to seed the client and run the `curl` command.
+**Expected:** `access_token`.
+
+### Endpoint Test: Token Introspection
+
+1.  **Seed a Resource Server Client:** Create a client in MongoDB to represent your API.
+    ```javascript
+    // In mongosh
+    db.clients.insertOne({
+        client_id: "resource-server",
+        client_secret: "PASTE_HASH_FOR_resource-server-secret_HERE",
+        name: "My Protected API"
+    });
+    ```
+2.  **Get any valid `access_token`** from one of the flows above.
+3.  **Call the endpoint:**
+    ```bash
+    curl -X POST http://localhost:8080/oauth2/introspect \
+    -u "resource-server:resource-server-secret" \
+    -d "token=YOUR_ACCESS_TOKEN_HERE" | jq
+    ```
+    **Expected:** A JSON response with `active: true` and token details.
+
+## Project Structure (not updated)
 
 ```
 oauth2-provider/
@@ -360,5 +358,6 @@ oauth2-provider/
 - **Database**: MongoDB
 - **Cache/Sessions**: Redis
 - **Configuration**: `spf13/viper`
-- **JWTs**: `golang-jwt/jwt/v5`
+- **JWTs**: `golang-jwt/jwt/v5`, `lestrrat-go/jwx/v2`
 - **Password Hashing**: `golang.org/x/crypto/bcrypt`
+```
