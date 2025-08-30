@@ -360,4 +360,3 @@ oauth2-provider/
 - **Configuration**: `spf13/viper`
 - **JWTs**: `golang-jwt/jwt/v5`, `lestrrat-go/jwx/v2`
 - **Password Hashing**: `golang.org/x/crypto/bcrypt`
-```
