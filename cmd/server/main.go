@@ -41,6 +41,7 @@ type App struct {
 	IntrospectionHandler *handlers.IntrospectionHandler
 	RevocationHandler    *handlers.RevocationHandler
 	JWKSHandler          *handlers.JWKSHandler
+	DiscoveryHandler     *handlers.DiscoveryHandler
 }
 
 func main() {
@@ -113,6 +114,7 @@ func run() error {
 	introspectionHandler := handlers.NewIntrospectionHandler(logger, clientService, jwtManager)
 	revocationHandler := handlers.NewRevocationHandler(logger, clientService, tokenService)
 	jwksHandler := handlers.NewJWKSHandler(logger, jwtManager)
+	discoveryHandler := handlers.NewDiscoveryHandler(logger, clientService)
 	logger.Info("metadata handlers initialized")
 
 	// --- Template Cache ---
@@ -141,6 +143,7 @@ func run() error {
 		IntrospectionHandler: introspectionHandler,
 		RevocationHandler:    revocationHandler,
 		JWKSHandler:          jwksHandler,
+		DiscoveryHandler:     discoveryHandler,
 	}
 
 	// --- HTTP Server ---
@@ -229,5 +232,6 @@ func (a *App) ToServerDependencies() server.AppDependencies {
 		IntrospectionHandler: a.IntrospectionHandler,
 		RevocationHandler:    a.RevocationHandler,
 		JWKSHandler:          a.JWKSHandler,
+		DiscoveryHandler:     a.DiscoveryHandler,
 	}
 }

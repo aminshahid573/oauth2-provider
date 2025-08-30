@@ -1,4 +1,3 @@
-// File: internal/server/router.go
 package server
 
 import (
@@ -8,7 +7,7 @@ import (
 
 	"github.com/aminshahid573/oauth2-provider/internal/handlers"
 	"github.com/aminshahid573/oauth2-provider/internal/middleware"
-	"github.com/aminshahid573/oauth2-provider/internal/services" // Import services
+	"github.com/aminshahid573/oauth2-provider/internal/services"
 	"github.com/aminshahid573/oauth2-provider/internal/storage"
 	"github.com/aminshahid573/oauth2-provider/internal/utils"
 	"github.com/aminshahid573/oauth2-provider/web"
@@ -32,6 +31,7 @@ type AppDependencies struct {
 	IntrospectionHandler *handlers.IntrospectionHandler
 	RevocationHandler    *handlers.RevocationHandler
 	JWKSHandler          *handlers.JWKSHandler
+	DiscoveryHandler     *handlers.DiscoveryHandler
 }
 
 // debugHeaders is a middleware for logging request headers.
@@ -99,37 +99,35 @@ func NewRouter(deps AppDependencies) http.Handler {
 	// The path is conventional and well-known to clients.
 	mux.HandleFunc("GET /.well-known/jwks.json", deps.JWKSHandler.ServeJWKS)
 
+	// The path is defined by RFC 8414
+	mux.HandleFunc("GET /.well-known/oauth-authorization-server", deps.DiscoveryHandler.ServeDiscoveryDocument)
+
 	// --- Placeholder for admin dashboard (now also protected) ---
 	mux.Handle("/admin/dashboard", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Welcome to the dashboard!"))
 	})))
 
 	// --- Middleware Configuration ---
-	csrfOpts := []csrf.Option{
-		csrf.Secure(deps.AppEnv != "development"), // Secure flag is true in prod
-		csrf.Path("/"),
-		csrf.HttpOnly(true),
-		csrf.SameSite(csrf.SameSiteLaxMode),
-		csrf.TrustedOrigins([]string{deps.BaseURL}),
-	}
-	// For local dev, we use the skip header. For prod, we enforce trusted origins.
-	if deps.AppEnv != "development" {
-		csrfOpts = append(csrfOpts, csrf.TrustedOrigins([]string{deps.BaseURL}))
-	}
-
-	csrfMiddleware := csrf.Protect([]byte(deps.CSRFKey), csrfOpts...)
-
 	var handler http.Handler = mux
 
-	// In development, add the middleware to skip the origin check.
+	// Conditionally apply CSRF middleware based on environment
 	if deps.AppEnv == "development" {
-		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			r.Header.Set("X-CSRF-Skip-Origin-Check", "true")
-			mux.ServeHTTP(w, r)
-		})
+		deps.Logger.Info("CSRF protection DISABLED for development environment")
+		// Don't apply CSRF middleware in development
+	} else {
+		csrfOpts := []csrf.Option{
+			csrf.Secure(true),
+			csrf.Path("/"),
+			csrf.HttpOnly(true),
+			csrf.SameSite(csrf.SameSiteLaxMode),
+			csrf.TrustedOrigins([]string{deps.BaseURL}),
+		}
+		csrfMiddleware := csrf.Protect([]byte(deps.CSRFKey), csrfOpts...)
+		handler = csrfMiddleware(handler)
+		deps.Logger.Info("CSRF protection ENABLED for production environment")
 	}
 
-	handler = csrfMiddleware(handler)
+	// Apply the debug logger last, so it runs first.
 	handler = debugHeaders(handler, deps.Logger)
 
 	return handler
