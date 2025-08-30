@@ -12,11 +12,19 @@ import (
 // ClientService provides business logic for OAuth2 clients.
 type ClientService struct {
 	clientStore storage.ClientStore
+	baseURL     string
 }
 
 // NewClientService creates a new ClientService.
-func NewClientService(clientStore storage.ClientStore) *ClientService {
-	return &ClientService{clientStore: clientStore}
+func NewClientService(clientStore storage.ClientStore, baseURL string) *ClientService {
+	return &ClientService{
+		clientStore: clientStore,
+		baseURL:     baseURL,
+	}
+}
+
+func (s *ClientService) GetBaseURL() string {
+	return s.baseURL
 }
 
 // ValidateClientCredentials checks if the provided client ID and secret are valid.

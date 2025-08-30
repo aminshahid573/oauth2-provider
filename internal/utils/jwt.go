@@ -2,8 +2,8 @@
 package utils
 
 import (
-	"crypto/rand"
 	"crypto/rsa"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"time"
@@ -33,12 +33,14 @@ type JWTManager struct {
 
 // NewJWTManager creates a new JWTManager, generating a new RSA key pair on startup.
 func NewJWTManager(cfg config.JWTConfig) (*JWTManager, error) {
-	// In a real production system, you would load a private key from a secure location
-	// (like a file, environment variable, or secrets manager) instead of generating it.
-	// For this project, generating a key on startup is sufficient.
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	pemData, err := base64.StdEncoding.DecodeString(cfg.PrivateKeyBase64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate RSA key pair: %w", err)
+		return nil, fmt.Errorf("failed to base64 decode private key: %w", err)
+	}
+
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(pemData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse RSA private key from PEM: %w", err)
 	}
 
 	// Generate a unique ID for this key.

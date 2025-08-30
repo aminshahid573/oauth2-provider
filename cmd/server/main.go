@@ -101,7 +101,7 @@ func run() error {
 		return fmt.Errorf("failed to initialize JWT Manager: %w", err)
 	}
 
-	clientService := services.NewClientService(dataStore.Client)
+	clientService := services.NewClientService(dataStore.Client, cfg.BaseURL)
 	authService := services.NewAuthService(dataStore.User)
 	tokenService := services.NewTokenService(jwtManager, dataStore.Token)
 	pkceService := services.NewPKCEService(pkceStore)

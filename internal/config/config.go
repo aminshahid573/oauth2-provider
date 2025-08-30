@@ -42,8 +42,9 @@ type RedisConfig struct {
 
 // JWTConfig holds JWT signing and validation details.
 type JWTConfig struct {
-	SecretKey string `mapstructure:"JWT_SECRET_KEY" validate:"required,min=32"`
-	Issuer    string `mapstructure:"JWT_ISSUER" validate:"required"`
+	SecretKey        string `mapstructure:"JWT_SECRET_KEY" validate:"required,min=32"`
+	PrivateKeyBase64 string `mapstructure:"JWT_PRIVATE_KEY_BASE64" validate:"required"`
+	Issuer           string `mapstructure:"JWT_ISSUER" validate:"required"`
 
 	// These fields are for viper to read the integer values from .env
 	AccessTokenLifespanMinutes int64 `mapstructure:"JWT_ACCESS_TOKEN_LIFESPAN_MINUTES" validate:"required"`

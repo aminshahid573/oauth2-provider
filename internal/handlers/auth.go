@@ -76,6 +76,13 @@ func (h *AuthHandler) showConsentPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The provided redirect_uri MUST be one of the URIs registered by the client.
+	if !slices.Contains(client.RedirectURIs, redirectURI) {
+		h.logger.Warn("invalid redirect_uri provided", "client_id", clientID, "provided_uri", redirectURI)
+		utils.HandleError(w, r, h.logger, &utils.AppError{Code: "invalid_request", Message: "The provided redirect_uri is not registered for this client.", HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
 	requestedScopes := strings.Fields(scope)
 	if !h.scopeService.ValidateScopes(requestedScopes) {
 		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
@@ -165,7 +172,7 @@ func (h *AuthHandler) DeviceAuthorization(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	verificationURI := "http://localhost:8080/device" // TODO: Use config
+	verificationURI := h.clientService.GetBaseURL() + "/device"
 	response := map[string]any{
 		"device_code":      deviceCode,
 		"user_code":        userCode,
@@ -344,8 +351,9 @@ func (h *AuthHandler) handleJWTBearerGrant(w http.ResponseWriter, r *http.Reques
 
 	// 6. Validate other claims ('aud', 'exp').
 	// The 'aud' (audience) claim MUST be our token endpoint URL.
+	expectedAudience := h.clientService.GetBaseURL() + "/oauth2/token"
 	audience, err := parsedToken.Claims.GetAudience()
-	if err != nil || len(audience) == 0 || audience[0] != "http://localhost:8080/oauth2/token" { // TODO: Use config
+	if err != nil || len(audience) == 0 || audience[0] != expectedAudience {
 		h.writeTokenError(w, "invalid_grant", "Invalid 'aud' claim in assertion.")
 		return
 	}
@@ -374,12 +382,20 @@ func (h *AuthHandler) handleJWTBearerGrant(w http.ResponseWriter, r *http.Reques
 // handleAuthorizationCodeGrant processes the authorization_code grant type.
 func (h *AuthHandler) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Request) {
 	code := r.PostForm.Get("code")
+	redirectURI := r.PostForm.Get("redirect_uri")
 	clientID := r.PostForm.Get("client_id")
 	clientSecret := r.PostForm.Get("client_secret")
 
 	client, err := h.clientService.ValidateClientCredentials(r.Context(), clientID, clientSecret)
 	if err != nil {
 		h.writeTokenError(w, "invalid_client", "Client authentication failed.")
+		return
+	}
+
+	// The redirect_uri in the token request MUST match the one from the authorization request.
+	// While we don't store it with the code, we can validate it's a valid one for the client.
+	if !slices.Contains(client.RedirectURIs, redirectURI) {
+		h.writeTokenError(w, "invalid_grant", "The redirect_uri does not match the one registered for the client.")
 		return
 	}
 

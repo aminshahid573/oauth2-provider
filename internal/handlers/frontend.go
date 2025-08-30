@@ -92,13 +92,14 @@ func (h *FrontendHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	isSecure := r.TLS != nil
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
 		Value:    session.ID,
 		Path:     "/",
 		Expires:  session.ExpiresAt,
 		HttpOnly: true,
-		Secure:   r.TLS != nil,
+		Secure:   isSecure,
 		SameSite: http.SameSiteLaxMode,
 	})
 

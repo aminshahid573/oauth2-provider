@@ -105,25 +105,31 @@ func NewRouter(deps AppDependencies) http.Handler {
 	})))
 
 	// --- Middleware Configuration ---
-	var handler http.Handler = mux
-
-	// Conditionally apply CSRF middleware based on environment
-	if deps.AppEnv == "development" {
-		deps.Logger.Info("CSRF protection DISABLED for development environment")
-	} else {
-		csrfOpts := []csrf.Option{
-			csrf.Secure(true),
-			csrf.Path("/"),
-			csrf.HttpOnly(true),
-			csrf.SameSite(csrf.SameSiteLaxMode),
-			csrf.TrustedOrigins([]string{deps.BaseURL}),
-		}
-		csrfMiddleware := csrf.Protect([]byte(deps.CSRFKey), csrfOpts...)
-		handler = csrfMiddleware(handler)
-		deps.Logger.Info("CSRF protection ENABLED for production environment")
+	csrfOpts := []csrf.Option{
+		csrf.Secure(deps.AppEnv != "development"), // Secure flag is true in prod
+		csrf.Path("/"),
+		csrf.HttpOnly(true),
+		csrf.SameSite(csrf.SameSiteLaxMode),
+		csrf.TrustedOrigins([]string{deps.BaseURL}),
+	}
+	// For local dev, we use the skip header. For prod, we enforce trusted origins.
+	if deps.AppEnv != "development" {
+		csrfOpts = append(csrfOpts, csrf.TrustedOrigins([]string{deps.BaseURL}))
 	}
 
-	// Apply the debug logger last, so it runs first.
+	csrfMiddleware := csrf.Protect([]byte(deps.CSRFKey), csrfOpts...)
+
+	var handler http.Handler = mux
+
+	// In development, add the middleware to skip the origin check.
+	if deps.AppEnv == "development" {
+		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Header.Set("X-CSRF-Skip-Origin-Check", "true")
+			mux.ServeHTTP(w, r)
+		})
+	}
+
+	handler = csrfMiddleware(handler)
 	handler = debugHeaders(handler, deps.Logger)
 
 	return handler
