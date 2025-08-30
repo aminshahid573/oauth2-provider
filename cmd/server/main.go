@@ -39,6 +39,7 @@ type App struct {
 	ScopeService   *services.ScopeService
 
 	IntrospectionHandler *handlers.IntrospectionHandler
+	RevocationHandler    *handlers.RevocationHandler
 }
 
 func main() {
@@ -104,7 +105,8 @@ func run() error {
 
 	// --- Initialize Handlers ---
 	introspectionHandler := handlers.NewIntrospectionHandler(logger, clientService, jwtManager)
-	logger.Info("introspection handler initialized")
+	revocationHandler := handlers.NewRevocationHandler(logger, clientService, tokenService)
+	logger.Info("metadata handlers initialized")
 
 	// --- Template Cache ---
 	templateCache, err := utils.NewTemplateCache()
@@ -130,6 +132,7 @@ func run() error {
 		ScopeService:   scopeService,
 
 		IntrospectionHandler: introspectionHandler,
+		RevocationHandler:    revocationHandler,
 	}
 
 	// --- HTTP Server ---
@@ -216,5 +219,6 @@ func (a *App) ToServerDependencies() server.AppDependencies {
 		AppEnv:         a.Config.AppEnv,
 
 		IntrospectionHandler: a.IntrospectionHandler,
+		RevocationHandler:    a.RevocationHandler,
 	}
 }

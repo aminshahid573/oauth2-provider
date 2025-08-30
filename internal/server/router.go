@@ -30,6 +30,7 @@ type AppDependencies struct {
 	AppEnv         string
 
 	IntrospectionHandler *handlers.IntrospectionHandler
+	RevocationHandler    *handlers.RevocationHandler
 }
 
 // debugHeaders is a middleware for logging request headers.
@@ -75,7 +76,7 @@ func NewRouter(deps AppDependencies) http.Handler {
 		deps.TokenService,
 	)
 
-	// The AuthorizeFlow handler is now protected by the auth middleware.
+	// The AuthorizeFlow handler is protected by the auth middleware.
 	mux.Handle("/oauth2/authorize", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.AuthorizeFlow)))
 
 	// The /token endpoint is for clients, so it's NOT protected by session auth.
@@ -92,6 +93,7 @@ func NewRouter(deps AppDependencies) http.Handler {
 
 	// --- OAuth2 Metadata Endpoints ---
 	mux.HandleFunc("POST /oauth2/introspect", deps.IntrospectionHandler.Introspect)
+	mux.HandleFunc("POST /oauth2/revoke", deps.RevocationHandler.Revoke) // Add this route
 
 	// --- Placeholder for admin dashboard (now also protected) ---
 	mux.Handle("/admin/dashboard", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
