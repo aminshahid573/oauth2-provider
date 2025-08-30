@@ -23,20 +23,21 @@
 - [Project Overview](#project-overview)
 - [Features](#features)
 - [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation & Setup](#installation--setup)
 - [Running the Server](#running-the-server)
-- [API Endpoints](#api-endpoints)
-  - [Authorization Endpoint](#1-authorization-endpoint-oauth2authorize)
-  - [Token Endpoint](#2-token-endpoint-oauth2token)
-  - [Token Introspection Endpoint](#3-token-introspection-endpoint-oauth2introspect)
-- [Testing with `curl`](#testing-with-curl)
-  - [Flow 1: Authorization Code Flow](#flow-1-authorization-code-flow)
-  - [Flow 2: Client Credentials Flow](#flow-2-client-credentials-flow)
-  - [Flow 3: Refresh Token Flow](#flow-3-refresh-token-flow)
-  - [Flow 4: Device Authorization Flow](#flow-4-device-authorization-flow)
-  - [Flow 5: JWT Bearer Token Flow](#flow-5-jwt-bearer-token-flow)
-  - [Endpoint Test: Token Introspection](#endpoint-test-token-introspection)
+- [**API Endpoints & Flows: A Detailed Guide**](#api-endpoints--flows-a-detailed-guide)
+  - [**Category 1: User-Facing Endpoints (Browser)**](#category-1-user-facing-endpoints-browser)
+    - [1.1 `/login` (GET, POST)](#11-login-get-post)
+    - [1.2 `/oauth2/authorize` (GET, POST)](#12-oauth2authorize-get-post)
+    - [1.3 `/device` (GET, POST)](#13-device-get-post)
+  - [**Category 2: OAuth2 API Endpoints (Machine-to-Machine)**](#category-2-oauth2-api-endpoints-machine-to-machine)
+    - [2.1 `/oauth2/device_authorization` (POST)](#21-oauth2device_authorization-post)
+    - [2.2 `/oauth2/token` (POST)](#22-oauth2token-post)
+    - [2.3 `/oauth2/introspect` (POST)](#23-oauth2introspect-post)
+    - [2.4 `/oauth2/revoke` (POST)](#24-oauth2revoke-post)
+- [**Complete Flow Walkthroughs**](#complete-flow-walkthroughs)
+  - [Flow 1: Authorization Code + Refresh Token](#flow-1-authorization-code--refresh-token)
+  - [Flow 2: Client Credentials](#flow-2-client-credentials)
+  - [Flow 3: Device Authorization](#flow-3-device-authorization)
 - [Project Structure](#project-structure)
 - [Technology Stack](#technology-stack)
 
@@ -98,7 +99,7 @@ This project implements a full-featured OAuth2 server that can act as a central 
 5.  **Seed the Database:**
     Connect to MongoDB (`mongosh "mongodb://root:password@localhost:27017"`) and run a script to create a test user and several clients. **You must generate your own unique bcrypt hashes for the secrets.**
 
-    *(See the [Testing Guide](#testing-with-curl) for the full seed script and instructions.)*
+    *(See the Testing Guide for the full seed script and instructions.)*
 
 ## Running the Server
 
@@ -107,57 +108,134 @@ go run ./cmd/server
 ```
 The server will be available at `http://localhost:8080`.
 
-## API Endpoints
+## API Endpoints & Flows: A Detailed Guide
 
 ### 1. Authorization Endpoint: `/oauth2/authorize`
 
-- **Method**: `GET`, `POST`
-- **Description**: The user-facing starting point for the Authorization Code Flow. Handles user login and consent.
+This section provides a comprehensive reference for every endpoint and flow supported by the server.
 
-### 2. Token Endpoint: `/oauth2/token`
+### **Category 1: User-Facing Endpoints (Browser)**
 
-- **Method**: `POST`
-- **Description**: The central backend endpoint for clients to exchange codes or credentials for tokens. Supports `authorization_code`, `client_credentials`, `refresh_token`, `urn:ietf:params:oauth:grant-type:device_code`, and `urn:ietf:params:oauth:grant-type:jwt-bearer` grant types.
+These endpoints render HTML pages and are intended for interaction with an end-user's web browser.
 
-### 3. Token Introspection Endpoint: `/oauth2/introspect`
+#### 1.1 `/login` (GET, POST)
+- **Purpose**: To authenticate a user.
+- **`GET /login`**: Displays the HTML login form. Can accept a `return_to` query parameter to redirect the user after a successful login.
+- **`POST /login`**: Handles the form submission. On success, creates a session cookie and redirects. On failure, re-renders the form with errors.
 
-- **Method**: `POST`
-- **Authentication**: HTTP Basic Auth (using the resource server's `client_id` and `client_secret`).
-- **Description**: Allows a client (acting as a resource server) to check the validity of an access token.
+#### 1.2 `/oauth2/authorize` (GET, POST)
+- **Purpose**: To manage user consent for the **Authorization Code Flow**.
+- **`GET /oauth2/authorize`**: This is the main entry point. It validates the client and scopes, then renders the consent page.
+  - **Example Request (Browser URL):**
+    ```
+    http://localhost:8080/oauth2/authorize?response_type=code&client_id=test-client&redirect_uri=http://localhost:3000/callback&scope=openid%20profile&state=xyz123
+    ```
+- **`POST /oauth2/authorize`**: Handles the "Allow" or "Deny" submission from the consent page.
+  - **On "Allow"**: Redirects to the client's `redirect_uri` with a `code`.
+    - **Example Redirect:** `http://localhost:3000/callback?code=...&state=xyz123`
+  - **On "Deny"**: Redirects to the client's `redirect_uri` with an `error`.
+    - **Example Redirect:** `http://localhost:3000/callback?error=access_denied&state=xyz123`
 
-#### Request Parameters (Form Body)
+#### 1.3 `/device` (GET, POST)
+- **Purpose**: To link a user's session to a device for the **Device Authorization Flow**.
+- **`GET /device`**: Displays the HTML form where a user enters the code shown on their device.
+- **`POST /device`**: Handles the code submission. On success, it validates the code and shows the device-specific consent page.
 
-| Parameter | Required | Description              |
-| --------- | -------- | ------------------------ |
-| `token`   | Yes      | The access token to check. |
+---
 
-#### Success Response (`active: true`)
+### **Category 2: OAuth2 API Endpoints (Machine-to-Machine)**
 
-```json
-{
-  "active": true,
-  "scope": "openid profile",
-  "client_id": "test-client",
-  "sub": "6675d3a...",
-  "exp": 1755855000,
-  "iat": 1755854100,
-  "nbf": 1755854100,
-  "iss": "oauth2-provider",
-  "aud": ["test-client"],
-  "jti": "...",
-  "token_type": "Bearer"
-}
-```
+These endpoints are called by client applications (servers, devices) and typically return JSON.
 
-#### Failure Response (`active: false`)
+#### 2.1 `/oauth2/device_authorization` (POST)
+- **Purpose**: To start the **Device Authorization Flow**.
+- **Request (`application/x-www-form-urlencoded`):**
+  ```bash
+  curl -X POST http://localhost:8080/oauth2/device_authorization \
+  -d "client_id=test-client" \
+  -d "scope=openid profile"
+  ```
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "device_code": "a_long_secret_string_for_the_device",
+    "user_code": "ABCDEFGH",
+    "verification_uri": "http://localhost:8080/device",
+    "expires_in": 900,
+    "interval": 5
+  }
+  ```
 
-```json
-{
-  "active": false
-}
-```
+#### 2.2 `/oauth2/token` (POST)
+- **Purpose**: The central endpoint to exchange credentials/codes for tokens.
+- **Supports Grant Types**: `authorization_code`, `client_credentials`, `refresh_token`, `urn:ietf:params:oauth:grant-type:device_code`, `urn:ietf:params:oauth:grant-type:jwt-bearer`.
+- **Request (`application/x-www-form-urlencoded`):**
+  ```bash
+  # Example for Client Credentials
+  curl -X POST http://localhost:8080/oauth2/token \
+  -d "grant_type=client_credentials" \
+  -d "client_id=m2m-client" \
+  -d "client_secret=m2m-secret"
+  ```
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "access_token": "eyJhbGci...",
+    "token_type": "Bearer",
+    "expires_in": 3600,
+    "scope": "api:read api:write",
+    "refresh_token": "optional_refresh_token..."
+  }
+  ```
+- **Error Response (`400 Bad Request`):**
+  ```json
+  {
+    "error": "invalid_grant",
+    "error_description": "The authorization code is invalid or expired."
+  }
+  ```
 
-## Testing with `curl`
+#### 2.3 `/oauth2/introspect` (POST)
+- **Purpose**: To validate an access token.
+- **Authentication**: HTTP Basic Auth (`-u client_id:client_secret`).
+- **Request (`application/x-www-form-urlencoded`):**
+  ```bash
+  curl -X POST http://localhost:8080/oauth2/introspect \
+  -u "resource-server:resource-server-secret" \
+  -d "token=some_access_token_to_check"
+  ```
+- **Success Response (`200 OK`, Active Token):**
+  ```json
+  {
+    "active": true,
+    "scope": "openid profile",
+    "client_id": "test-client",
+    "sub": "6675d3a...",
+    "exp": 1755855000,
+    "iat": 1755854100,
+    "token_type": "Bearer"
+  }
+  ```
+- **Success Response (`200 OK`, Inactive Token):**
+  ```json
+  {
+    "active": false
+  }
+  ```
+
+#### 2.4 `/oauth2/revoke` (POST)
+- **Purpose**: To invalidate a refresh token.
+- **Authentication**: HTTP Basic Auth (`-u client_id:client_secret`).
+- **Request (`application/x-www-form-urlencoded`):**
+  ```bash
+  curl -X POST http://localhost:8080/oauth2/revoke \
+  -u "test-client:test-secret" \
+  -d "token=the_refresh_token_to_revoke"
+  ```
+- **Success Response (`200 OK`):**
+  - An empty body with an HTTP 200 OK status, regardless of whether the token was valid or not.
+
+## Complete Flow Walkthroughs
 
 *(This section assumes you have followed the database seeding instructions in the [Getting Started](#getting-started) guide.)*
 
@@ -240,7 +318,8 @@ Requires running the separate `jwt-client-simulator` tool. Follow the instructio
     ```
     **Expected:** A JSON response with `active: true` and token details.
 
-## Project Structure (not updated)
+## Project Structure
+*(not updated)*
 
 ```
 oauth2-provider/
