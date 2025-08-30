@@ -1,6 +1,8 @@
 <p align="center">
-  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=500&size=22&pause=1000&color=F7F7F7&background=1E1E1E00&center=true&vCenter=true&width=500&lines=Hi%2C+I'm+Shahid+Amin+👋;OAuth2+Provider+in+Go+%F0%9F%9A%80;Secure.+Scalable.+Production+Ready.">
+  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&size=22&pause=1000&color=00F7FF&center=true&vCenter=true&width=500&lines=Hi%2C+I'm+Shahid+Amin+👋;OAuth2+Provider+in+Go+🚀;Secure.+Scalable.+Production+Ready." alt="Typing SVG" />
 </p>
+
+
 
 <h1 align="center">🔐 OAuth2 Provider in Go</h1>
 
