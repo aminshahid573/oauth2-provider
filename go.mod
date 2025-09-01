@@ -9,6 +9,7 @@ require (
 	github.com/gorilla/csrf v1.7.3
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/redis/go-redis/v9 v9.12.1
+	github.com/rs/cors v1.11.1
 	github.com/spf13/viper v1.20.1
 	go.mongodb.org/mongo-driver/v2 v2.3.0
 	golang.org/x/crypto v0.41.0

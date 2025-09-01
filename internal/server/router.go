@@ -32,6 +32,9 @@ type AppDependencies struct {
 	RevocationHandler    *handlers.RevocationHandler
 	JWKSHandler          *handlers.JWKSHandler
 	DiscoveryHandler     *handlers.DiscoveryHandler
+	UserInfoHandler      *handlers.UserInfoHandler
+
+	AllowedOrigins []string
 }
 
 // debugHeaders is a middleware for logging request headers.
@@ -102,6 +105,9 @@ func NewRouter(deps AppDependencies) http.Handler {
 	// The path is defined by RFC 8414
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", deps.DiscoveryHandler.ServeDiscoveryDocument)
 
+	// This endpoint supports both GET and POST as per the OIDC spec.
+	mux.HandleFunc("/oauth2/userinfo", deps.UserInfoHandler.GetUserInfo)
+
 	// --- Placeholder for admin dashboard (now also protected) ---
 	mux.Handle("/admin/dashboard", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Welcome to the dashboard!"))
@@ -126,6 +132,10 @@ func NewRouter(deps AppDependencies) http.Handler {
 		handler = csrfMiddleware(handler)
 		deps.Logger.Info("CSRF protection ENABLED for production environment")
 	}
+
+	handler = middleware.SecurityHeaders(handler)
+	corsMiddleware := middleware.CORS(deps.AllowedOrigins)
+	handler = corsMiddleware(handler)
 
 	// Apply the debug logger last, so it runs first.
 	handler = debugHeaders(handler, deps.Logger)

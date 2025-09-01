@@ -12,14 +12,15 @@ import (
 // Config stores all configuration for the application.
 // The values are read by viper from a config file or environment variables.
 type Config struct {
-	AppEnv  string       `mapstructure:"APP_ENV" validate:"required,oneof=development staging production"`
-	Server  ServerConfig `mapstructure:",squash"`
-	Mongo   MongoConfig  `mapstructure:",squash"`
-	Redis   RedisConfig  `mapstructure:",squash"`
-	JWT     JWTConfig    `mapstructure:",squash"`
-	Log     LogConfig    `mapstructure:",squash"`
-	CSRF    CSRFConfig   `mapstructure:",squash"`
-	BaseURL string       `mapstructure:"BASE_URL" validate:"required,url"`
+	AppEnv   string         `mapstructure:"APP_ENV" validate:"required,oneof=development staging production"`
+	Server   ServerConfig   `mapstructure:",squash"`
+	Mongo    MongoConfig    `mapstructure:",squash"`
+	Redis    RedisConfig    `mapstructure:",squash"`
+	JWT      JWTConfig      `mapstructure:",squash"`
+	Log      LogConfig      `mapstructure:",squash"`
+	CSRF     CSRFConfig     `mapstructure:",squash"`
+	Security SecurityConfig `mapstructure:",squash"`
+	BaseURL  string         `mapstructure:"BASE_URL" validate:"required,url"`
 }
 
 // ServerConfig holds server-related configuration.
@@ -64,6 +65,11 @@ type CSRFConfig struct {
 // LogConfig holds logging configuration.
 type LogConfig struct {
 	Level string `mapstructure:"LOG_LEVEL" validate:"required,oneof=debug info warn error"`
+}
+
+// SecurityConfig holds security-related configuration.
+type SecurityConfig struct {
+	AllowedOrigins []string `mapstructure:"CORS_ALLOWED_ORIGINS"`
 }
 
 // LoadConfig reads configuration from file or environment variables.
