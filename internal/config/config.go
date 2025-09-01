@@ -12,15 +12,16 @@ import (
 // Config stores all configuration for the application.
 // The values are read by viper from a config file or environment variables.
 type Config struct {
-	AppEnv   string         `mapstructure:"APP_ENV" validate:"required,oneof=development staging production"`
-	Server   ServerConfig   `mapstructure:",squash"`
-	Mongo    MongoConfig    `mapstructure:",squash"`
-	Redis    RedisConfig    `mapstructure:",squash"`
-	JWT      JWTConfig      `mapstructure:",squash"`
-	Log      LogConfig      `mapstructure:",squash"`
-	CSRF     CSRFConfig     `mapstructure:",squash"`
-	Security SecurityConfig `mapstructure:",squash"`
-	BaseURL  string         `mapstructure:"BASE_URL" validate:"required,url"`
+	AppEnv    string          `mapstructure:"APP_ENV" validate:"required,oneof=development staging production"`
+	Server    ServerConfig    `mapstructure:",squash"`
+	Mongo     MongoConfig     `mapstructure:",squash"`
+	Redis     RedisConfig     `mapstructure:",squash"`
+	JWT       JWTConfig       `mapstructure:",squash"`
+	Log       LogConfig       `mapstructure:",squash"`
+	CSRF      CSRFConfig      `mapstructure:",squash"`
+	Security  SecurityConfig  `mapstructure:",squash"`
+	RateLimit RateLimitConfig `mapstructure:",squash"`
+	BaseURL   string          `mapstructure:"BASE_URL" validate:"required,url"`
 }
 
 // ServerConfig holds server-related configuration.
@@ -70,6 +71,16 @@ type LogConfig struct {
 // SecurityConfig holds security-related configuration.
 type SecurityConfig struct {
 	AllowedOrigins []string `mapstructure:"CORS_ALLOWED_ORIGINS"`
+}
+
+// RateLimitConfig holds rate limiting settings.
+type RateLimitConfig struct {
+	GlobalEnabled bool `mapstructure:"RATE_LIMIT_GLOBAL_ENABLED"`
+	GlobalRPS     int  `mapstructure:"RATE_LIMIT_GLOBAL_RPS"`
+	GlobalBurst   int  `mapstructure:"RATE_LIMIT_GLOBAL_BURST"`
+	TokenEnabled  bool `mapstructure:"RATE_LIMIT_TOKEN_ENABLED"`
+	TokenRPS      int  `mapstructure:"RATE_LIMIT_TOKEN_RPS"`
+	TokenBurst    int  `mapstructure:"RATE_LIMIT_TOKEN_BURST"`
 }
 
 // LoadConfig reads configuration from file or environment variables.

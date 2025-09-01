@@ -65,6 +65,16 @@ func (h *AuthHandler) showConsentPage(w http.ResponseWriter, r *http.Request) {
 	responseType := queryParams.Get("response_type")
 	scope := queryParams.Get("scope")
 
+	codeChallenge := queryParams.Get("code_challenge")
+	codeChallengeMethod := queryParams.Get("code_challenge_method")
+
+	if codeChallenge != "" {
+		if codeChallengeMethod != "S256" {
+			utils.HandleError(w, r, h.logger, &utils.AppError{Code: "invalid_request", Message: "code_challenge_method must be S256.", HTTPStatus: http.StatusBadRequest})
+			return
+		}
+	}
+
 	if clientID == "" || redirectURI == "" || responseType != "code" {
 		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
 		return
@@ -116,6 +126,9 @@ func (h *AuthHandler) handleConsent(w http.ResponseWriter, r *http.Request) {
 	state := r.PostForm.Get("state")
 	scope := r.PostForm.Get("scope")
 
+	codeChallenge := r.PostForm.Get("code_challenge")
+	codeChallengeMethod := r.PostForm.Get("code_challenge_method")
+
 	redirectURL, err := url.Parse(redirectURIStr)
 	if err != nil {
 		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
@@ -138,6 +151,14 @@ func (h *AuthHandler) handleConsent(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		utils.HandleError(w, r, h.logger, err)
 		return
+	}
+
+	if codeChallenge != "" && codeChallengeMethod == "S256" {
+		err := h.tokenService.StorePKCEChallenge(r.Context(), code, codeChallenge)
+		if err != nil {
+			utils.HandleError(w, r, h.logger, err)
+			return
+		}
 	}
 
 	query.Set("code", code)
@@ -385,6 +406,7 @@ func (h *AuthHandler) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 	redirectURI := r.PostForm.Get("redirect_uri")
 	clientID := r.PostForm.Get("client_id")
 	clientSecret := r.PostForm.Get("client_secret")
+	codeVerifier := r.PostForm.Get("code_verifier")
 
 	client, err := h.clientService.ValidateClientCredentials(r.Context(), clientID, clientSecret)
 	if err != nil {
@@ -396,6 +418,13 @@ func (h *AuthHandler) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 	// While we don't store it with the code, we can validate it's a valid one for the client.
 	if !slices.Contains(client.RedirectURIs, redirectURI) {
 		h.writeTokenError(w, "invalid_grant", "The redirect_uri does not match the one registered for the client.")
+		return
+	}
+
+	err = h.tokenService.ValidatePKCE(r.Context(), code, codeVerifier)
+	if err != nil {
+		// err could be ErrNotFound (no challenge stored) or a mismatch.
+		h.writeTokenError(w, "invalid_grant", err.Error())
 		return
 	}
 

@@ -4,7 +4,9 @@ package services
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -14,23 +16,27 @@ import (
 	"github.com/aminshahid573/oauth2-provider/internal/utils"
 )
 
+// TODO:: load from config , already defined in config
 const (
-	AuthCodeLifespan     = 10 * time.Minute
-	RefreshTokenLifespan = 30 * 24 * time.Hour // 30 days
-	DeviceCodeLifespan   = 15 * time.Minute
+	AuthCodeLifespan      = 10 * time.Minute
+	RefreshTokenLifespan  = 30 * 24 * time.Hour // 30 days
+	DeviceCodeLifespan    = 15 * time.Minute
+	PKCEChallengeLifespan = 10 * time.Minute
 )
 
 // TokenService provides business logic for creating and managing tokens.
 type TokenService struct {
 	jwtManager *utils.JWTManager
 	tokenStore storage.TokenStore
+	pkceStore  storage.PKCEStore
 }
 
 // NewTokenService creates a new TokenService.
-func NewTokenService(jwtManager *utils.JWTManager, tokenStore storage.TokenStore) *TokenService {
+func NewTokenService(jwtManager *utils.JWTManager, tokenStore storage.TokenStore, pkceStore storage.PKCEStore) *TokenService {
 	return &TokenService{
 		jwtManager: jwtManager,
 		tokenStore: tokenStore,
+		pkceStore:  pkceStore,
 	}
 }
 
@@ -186,6 +192,42 @@ func (s *TokenService) ApproveDeviceCode(ctx context.Context, userCode, userID s
 // DeleteTokenBySignature deletes a token by its signature.
 func (s *TokenService) DeleteTokenBySignature(ctx context.Context, signature string) error {
 	return s.tokenStore.DeleteBySignature(ctx, signature)
+}
+
+// StorePKCEChallenge saves the code challenge associated with an authorization code.
+func (s *TokenService) StorePKCEChallenge(ctx context.Context, code, challenge string) error {
+	return s.pkceStore.Save(ctx, code, challenge, PKCEChallengeLifespan)
+}
+
+// ValidatePKCE retrieves the stored challenge for a code and validates it against the verifier.
+func (s *TokenService) ValidatePKCE(ctx context.Context, code, verifier string) error {
+	challenge, err := s.pkceStore.Get(ctx, code)
+	if err != nil {
+		if errors.Is(err, utils.ErrNotFound) {
+			// If no challenge is found, it might be a flow that didn't use PKCE,
+			// or the code is simply invalid. For security, we treat it as an error.
+			return fmt.Errorf("invalid authorization code or no PKCE challenge found")
+		}
+		return fmt.Errorf("failed to retrieve PKCE challenge: %w", err)
+	}
+
+	// IMPORTANT: Delete the challenge immediately after retrieval to prevent reuse.
+	defer s.pkceStore.Delete(ctx, code)
+
+	// Check if the client provided a verifier. If a challenge was stored, a verifier is mandatory.
+	if verifier == "" {
+		return fmt.Errorf("code_verifier is required")
+	}
+
+	// Calculate the challenge from the provided verifier.
+	generatedChallenge := utils.GeneratePKCEChallengeS256(verifier)
+
+	// Compare in constant time to prevent timing attacks.
+	if subtle.ConstantTimeCompare([]byte(challenge), []byte(generatedChallenge)) != 1 {
+		return fmt.Errorf("invalid code_verifier")
+	}
+
+	return nil
 }
 
 // --- Private Helpers ---

@@ -35,6 +35,7 @@ type AppDependencies struct {
 	UserInfoHandler      *handlers.UserInfoHandler
 
 	AllowedOrigins []string
+	RateLimiter    *middleware.RateLimiter
 }
 
 // debugHeaders is a middleware for logging request headers.
@@ -66,6 +67,7 @@ func NewRouter(deps AppDependencies) http.Handler {
 
 	// --- Frontend Handlers ---
 	frontendHandler := handlers.NewFrontendHandler(deps.Logger, deps.TemplateCache, deps.AuthService, deps.SessionService, deps.TokenService, deps.ClientService, deps.ScopeService)
+
 	mux.HandleFunc("GET /login", frontendHandler.LoginPage)
 	mux.HandleFunc("POST /login", frontendHandler.Login)
 
@@ -84,7 +86,8 @@ func NewRouter(deps AppDependencies) http.Handler {
 	mux.Handle("/oauth2/authorize", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.AuthorizeFlow)))
 
 	// The /token endpoint is for clients, so it's NOT protected by session auth.
-	mux.HandleFunc("POST /oauth2/token", authHandler.Token)
+	tokenHandler := deps.RateLimiter.PerClient(http.HandlerFunc(authHandler.Token))
+	mux.Handle("POST /oauth2/token", tokenHandler)
 
 	mux.HandleFunc("POST /oauth2/device_authorization", authHandler.DeviceAuthorization)
 
@@ -133,9 +136,12 @@ func NewRouter(deps AppDependencies) http.Handler {
 		deps.Logger.Info("CSRF protection ENABLED for production environment")
 	}
 
+	// Apply the Global rate limiter to ALL requests.
+	handler = deps.RateLimiter.Global(handler)
+
 	handler = middleware.SecurityHeaders(handler)
-	corsMiddleware := middleware.CORS(deps.AllowedOrigins)
-	handler = corsMiddleware(handler)
+
+	handler = middleware.CORS(deps.AllowedOrigins)(handler)
 
 	// Apply the debug logger last, so it runs first.
 	handler = debugHeaders(handler, deps.Logger)

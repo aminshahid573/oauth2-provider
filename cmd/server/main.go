@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/aminshahid573/oauth2-provider/internal/config"
 	"github.com/aminshahid573/oauth2-provider/internal/handlers"
+	"github.com/aminshahid573/oauth2-provider/internal/middleware"
 	"github.com/aminshahid573/oauth2-provider/internal/server"
 	"github.com/aminshahid573/oauth2-provider/internal/services"
 	"github.com/aminshahid573/oauth2-provider/internal/storage"
@@ -43,6 +45,8 @@ type App struct {
 	JWKSHandler          *handlers.JWKSHandler
 	DiscoveryHandler     *handlers.DiscoveryHandler
 	UserInfoHandler      *handlers.UserInfoHandler
+
+	RateLimiter *middleware.RateLimiter
 }
 
 func main() {
@@ -85,6 +89,23 @@ func run() error {
 	defer redisClient.Close()
 	logger.Info("successfully connected to Redis")
 
+	//<--test purpose only-->
+	//TODO:: remove this or handle this with cleaner pproach
+	ctx := context.Background()
+	pong, err := redisClient.Ping(ctx).Result()
+	if err != nil {
+		log.Fatal("Redis ping failed:", err)
+	}
+	logger.Info("Redis connected successfully", "response", pong)
+	//<--test end-->
+
+	// Test writing to Redis
+	err = redisClient.Set(ctx, "test-key", "test-value", time.Minute).Err()
+	if err != nil {
+		log.Fatal("Redis write test failed:", err)
+	}
+	logger.Info("Redis write test successful")
+
 	// --- Initialize Stores ---
 	db := mongoClient.Database("oauth2_provider")
 	dataStore := &storage.DataStore{
@@ -103,9 +124,13 @@ func run() error {
 		return fmt.Errorf("failed to initialize JWT Manager: %w", err)
 	}
 
+	// --- Initialize Middleware Components ---
+	rateLimiter := middleware.NewRateLimiter(redisClient, cfg.RateLimit, logger)
+	logger.Info("rate limiter initialized")
+
 	clientService := services.NewClientService(dataStore.Client, cfg.BaseURL)
 	authService := services.NewAuthService(dataStore.User)
-	tokenService := services.NewTokenService(jwtManager, dataStore.Token)
+	tokenService := services.NewTokenService(jwtManager, dataStore.Token, pkceStore)
 	pkceService := services.NewPKCEService(pkceStore)
 	sessionService := services.NewSessionService(sessionStore)
 	scopeService := services.NewScopeService()
@@ -147,6 +172,8 @@ func run() error {
 		JWKSHandler:          jwksHandler,
 		DiscoveryHandler:     discoveryHandler,
 		UserInfoHandler:      userInfoHandler,
+
+		RateLimiter: rateLimiter,
 	}
 
 	// --- HTTP Server ---
@@ -220,17 +247,18 @@ func initLogger(level string) *slog.Logger {
 // This is a clean way to pass only the necessary dependencies to the HTTP layer.
 func (a *App) ToServerDependencies() server.AppDependencies {
 	return server.AppDependencies{
-		Logger:         a.Logger,
-		TemplateCache:  a.TemplateCache,
-		CSRFKey:        a.Config.CSRF.AuthKey,
+		Logger:        a.Logger,
+		TemplateCache: a.TemplateCache,
+		CSRFKey:       a.Config.CSRF.AuthKey,
+		BaseURL:       a.Config.BaseURL,
+		AppEnv:        a.Config.AppEnv,
+
 		AuthService:    a.AuthService,
 		SessionService: a.SessionService,
 		ClientService:  a.ClientService,
 		ScopeService:   a.ScopeService,
 		TokenService:   a.TokenService,
 		UserStore:      a.DataStore.User,
-		BaseURL:        a.Config.BaseURL,
-		AppEnv:         a.Config.AppEnv,
 
 		IntrospectionHandler: a.IntrospectionHandler,
 		RevocationHandler:    a.RevocationHandler,
@@ -239,5 +267,6 @@ func (a *App) ToServerDependencies() server.AppDependencies {
 		UserInfoHandler:      a.UserInfoHandler,
 
 		AllowedOrigins: a.Config.Security.AllowedOrigins,
+		RateLimiter:    a.RateLimiter,
 	}
 }
