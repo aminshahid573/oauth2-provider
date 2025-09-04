@@ -11,6 +11,7 @@ type User struct {
 	ID             bson.ObjectID `bson:"_id,omitempty"`
 	Username       string        `bson:"username"`
 	HashedPassword string        `bson:"hashed_password"`
+	Role           string        `bson:"role"`
 	CreatedAt      time.Time     `bson:"created_at"`
 	UpdatedAt      time.Time     `bson:"updated_at"`
 }

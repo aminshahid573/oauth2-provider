@@ -1,0 +1,38 @@
+<!-- File: web/templates/admin/dashboard.html (Corrected) -->
+{{ define "title" }}Dashboard{{ end }}
+
+{{ define "header" }}Dashboard Overview{{ end }}
+
+{{ define "styles" }}
+<!-- No page-specific styles needed for the dashboard -->
+{{ end }}
+
+{{ define "main" }}
+<div class="dashboard-grid">
+    <div class="stat-card">
+        <h3>Total Clients</h3>
+        <p class="stat-number">12</p>
+    </div>
+    <div class="stat-card">
+        <h3>Total Users</h3>
+        <p class="stat-number">150</p>
+    </div>
+    <div class="stat-card">
+        <h3>Active Tokens</h3>
+        <p class="stat-number">87</p>
+    </div>
+    <div class="stat-card">
+        <h3>Server Uptime</h3>
+        <p class="stat-number">99.98%</p>
+    </div>
+</div>
+
+<div class="content-card">
+    <h2>Recent Activity</h2>
+    <p>This area will show recent audit logs or important events.</p>
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+<!-- No page-specific scripts needed for the dashboard -->
+{{ end }}

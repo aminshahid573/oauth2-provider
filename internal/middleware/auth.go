@@ -65,6 +65,30 @@ func (m *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 	})
 }
 
+// RequireAdmin is a middleware that ensures a user is authenticated AND is an admin.
+func (m *AuthMiddleware) RequireAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// First, check if the user is authenticated at all.
+		user, ok := GetUserFromContext(r)
+		if !ok {
+			// This should not happen if RequireAuth is chained before this,
+			// but we handle it defensively.
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		// Now, check if the authenticated user has the 'admin' role.
+		if user.Role != "admin" {
+			m.logger.Warn("non-admin user attempted to access admin route", "user_id", user.ID.Hex(), "username", user.Username)
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		// If they are an admin, proceed to the next handler.
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (m *AuthMiddleware) redirectToLogin(w http.ResponseWriter, r *http.Request) {
 	// Preserve the original URL as a 'return_to' query parameter.
 	loginURL := "/login?return_to=" + url.QueryEscape(r.RequestURI)

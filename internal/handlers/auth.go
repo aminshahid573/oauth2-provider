@@ -105,7 +105,7 @@ func (h *AuthHandler) showConsentPage(w http.ResponseWriter, r *http.Request) {
 		"Scopes":      scopeDetails,
 		"QueryParams": queryParams,
 	}
-	h.templateCache.Render(w, r, "consent.html", data)
+	h.templateCache.Render(w, r, "base.html", "consent.html", data)
 }
 
 // handleConsent handles the POST request from the consent form.
@@ -235,7 +235,7 @@ func (h *AuthHandler) DeviceConsentFlow(w http.ResponseWriter, r *http.Request) 
 		"Scopes":     scopeDetails,
 		"UserCode":   userCode, // Pass the user_code to the form
 	}
-	h.templateCache.Render(w, r, "consent_device.html", data)
+	h.templateCache.Render(w, r, "admin.html", "consent_device.html", data)
 }
 
 // HandleDeviceConsent handles the POST from the device consent page.
@@ -266,7 +266,7 @@ func (h *AuthHandler) HandleDeviceConsent(w http.ResponseWriter, r *http.Request
 	}
 
 	// Show a success page to the user
-	h.templateCache.Render(w, r, "device_success.html", nil)
+	h.templateCache.Render(w, r, "admin.html", "device_success.html", nil)
 }
 
 // --- Token Endpoint ---

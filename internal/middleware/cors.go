@@ -10,8 +10,8 @@ import (
 func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 	c := cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
-		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodOptions},
-		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodOptions, http.MethodDelete, http.MethodPut},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "Cookie"},
 		AllowCredentials: true,
 		// Enable Debugging for development environment if needed
 		Debug: true,

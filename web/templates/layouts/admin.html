@@ -1,0 +1,42 @@
+<!-- File: web/templates/layouts/admin.html (Corrected) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ template "title" . }} - OAuth2 Provider</title>
+    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/admin.css">
+    {{ template "styles" . }}
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>OAuth2 Admin</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/admin/dashboard" class="{{ if eq .Data.CurrentPage "dashboard" }}active{{ end }}">Dashboard</a>
+                <a href="/admin/clients" class="{{ if eq .Data.CurrentPage "clients" }}active{{ end }}">Clients</a>
+                <a href="/admin/users" class="{{ if eq .Data.CurrentPage "users" }}active{{ end }}">Users</a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            <header class="main-header">
+                <h1>{{ template "header" . }}</h1>
+                <div class="user-info">
+                    <span>Welcome, {{ .Data.Username }}</span>
+                    <form action="/logout" method="POST">
+                        {{ .CSRFField }}
+                        <button type="submit">Logout</button>
+                    </form>
+                </div>
+            </header>
+            <div class="content-area">
+                {{ template "main" . }}
+            </div>
+        </main>
+    </div>
+    {{ template "scripts" . }}
+</body>
+</html>

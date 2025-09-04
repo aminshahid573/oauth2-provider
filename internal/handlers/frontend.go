@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aminshahid573/oauth2-provider/internal/middleware"
 	"github.com/aminshahid573/oauth2-provider/internal/services"
 	"github.com/aminshahid573/oauth2-provider/internal/utils"
 )
@@ -51,7 +52,9 @@ func (h *FrontendHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
 	data := map[string]any{
 		"ReturnTo": returnTo,
 	}
-	h.templateCache.Render(w, r, "login.html", data)
+
+	// Use the "base.html" layout for the public login page.
+	h.templateCache.Render(w, r, "base.html", "login.html", data)
 }
 
 // Login handles the submission of the login form.
@@ -70,7 +73,7 @@ func (h *FrontendHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	if !validator.Valid() {
 		data := map[string]any{"Username": username, "Validator": validator, "ReturnTo": returnTo}
-		h.templateCache.Render(w, r, "login.html", data)
+		h.templateCache.Render(w, r, "base.html", "login.html", data)
 		return
 	}
 
@@ -79,7 +82,7 @@ func (h *FrontendHandler) Login(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, utils.ErrUnauthorized) {
 			validator.AddError("credentials", "Invalid username or password.")
 			data := map[string]any{"Username": username, "Validator": validator, "ReturnTo": returnTo}
-			h.templateCache.Render(w, r, "login.html", data)
+			h.templateCache.Render(w, r, "base.html", "login.html", data)
 			return
 		}
 		utils.HandleError(w, r, h.logger, err)
@@ -115,7 +118,7 @@ func (h *FrontendHandler) Login(w http.ResponseWriter, r *http.Request) {
 // It shows the code entry page (GET) and processes the code (POST).
 func (h *FrontendHandler) DeviceFlow(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		h.templateCache.Render(w, r, "device.html", nil)
+		h.templateCache.Render(w, r, "base.html", "device.html", nil)
 		return
 	}
 
@@ -129,7 +132,7 @@ func (h *FrontendHandler) DeviceFlow(w http.ResponseWriter, r *http.Request) {
 	// Validate the user code format (should be 10 characters)
 	if len(userCode) != 10 {
 		data := map[string]any{"Error": "Invalid code format."}
-		h.templateCache.Render(w, r, "device.html", data)
+		h.templateCache.Render(w, r, "base.html", "device.html", data)
 		return
 	}
 
@@ -138,18 +141,55 @@ func (h *FrontendHandler) DeviceFlow(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.logger.Warn("Failed to get token by user code", "user_code", userCode, "error", err)
 		data := map[string]any{"Error": "Invalid or expired code."}
-		h.templateCache.Render(w, r, "device.html", data)
+		h.templateCache.Render(w, r, "base.html", "device.html", data)
 		return
 	}
 
 	// Check if the token is still valid (not expired)
 	if time.Now().After(token.ExpiresAt) {
 		data := map[string]any{"Error": "Code has expired."}
-		h.templateCache.Render(w, r, "device.html", data)
+		h.templateCache.Render(w, r, "base.html", "device.html", data)
 		return
 	}
 
 	// Redirect to the consent page with the user code
 	redirectURL := "/oauth2/authorize/device?user_code=" + url.QueryEscape(userCode)
 	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+}
+
+func (h *FrontendHandler) AdminDashboard(w http.ResponseWriter, r *http.Request) {
+	user, _ := middleware.GetUserFromContext(r)
+
+	data := map[string]any{
+		"CurrentPage": "dashboard",
+		"Username":    user.Username,
+	}
+	h.templateCache.Render(w, r, "admin.html", "dashboard.html", data)
+}
+func (h *FrontendHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	sessionCookie, err := r.Cookie("session_id")
+	if err == nil {
+		h.sessionService.DeleteSession(r.Context(), sessionCookie.Value)
+	}
+
+	// Clear the cookie by setting its max age to -1
+	http.SetCookie(w, &http.Cookie{
+		Name:   "session_id",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+// AdminClientsPage serves the client management page.
+func (h *FrontendHandler) AdminClientsPage(w http.ResponseWriter, r *http.Request) {
+	user, _ := middleware.GetUserFromContext(r)
+
+	data := map[string]any{
+		"CurrentPage": "clients",
+		"Username":    user.Username,
+	}
+	h.templateCache.Render(w, r, "admin.html", "clients.html", data)
 }

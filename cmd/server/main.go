@@ -45,6 +45,7 @@ type App struct {
 	JWKSHandler          *handlers.JWKSHandler
 	DiscoveryHandler     *handlers.DiscoveryHandler
 	UserInfoHandler      *handlers.UserInfoHandler
+	AdminHandler         *handlers.AdminHandler
 
 	RateLimiter *middleware.RateLimiter
 }
@@ -142,6 +143,7 @@ func run() error {
 	jwksHandler := handlers.NewJWKSHandler(logger, jwtManager)
 	discoveryHandler := handlers.NewDiscoveryHandler(logger, clientService)
 	userInfoHandler := handlers.NewUserInfoHandler(logger, jwtManager, dataStore.User)
+	adminHandler := handlers.NewAdminHandler(logger, clientService)
 	logger.Info("metadata handlers initialized")
 
 	// --- Template Cache ---
@@ -172,6 +174,7 @@ func run() error {
 		JWKSHandler:          jwksHandler,
 		DiscoveryHandler:     discoveryHandler,
 		UserInfoHandler:      userInfoHandler,
+		AdminHandler:         adminHandler,
 
 		RateLimiter: rateLimiter,
 	}
@@ -265,6 +268,7 @@ func (a *App) ToServerDependencies() server.AppDependencies {
 		JWKSHandler:          a.JWKSHandler,
 		DiscoveryHandler:     a.DiscoveryHandler,
 		UserInfoHandler:      a.UserInfoHandler,
+		AdminHandler:         a.AdminHandler,
 
 		AllowedOrigins: a.Config.Security.AllowedOrigins,
 		RateLimiter:    a.RateLimiter,

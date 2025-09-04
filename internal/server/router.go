@@ -33,6 +33,7 @@ type AppDependencies struct {
 	JWKSHandler          *handlers.JWKSHandler
 	DiscoveryHandler     *handlers.DiscoveryHandler
 	UserInfoHandler      *handlers.UserInfoHandler
+	AdminHandler         *handlers.AdminHandler
 
 	AllowedOrigins []string
 	RateLimiter    *middleware.RateLimiter
@@ -56,67 +57,66 @@ func debugHeaders(next http.Handler, logger *slog.Logger) http.Handler {
 func NewRouter(deps AppDependencies) http.Handler {
 	deps.Logger.Info("Router configuration", "AppEnv", deps.AppEnv, "BaseURL", deps.BaseURL)
 
+	// The main router for all application routes.
 	mux := http.NewServeMux()
 
-	// --- Static Files ---
+	// --- Initialize Handlers and Middleware from Dependencies ---
+	authMiddleware := middleware.NewAuthMiddleware(deps.Logger, deps.SessionService, deps.UserStore)
+	frontendHandler := handlers.NewFrontendHandler(deps.Logger, deps.TemplateCache, deps.AuthService, deps.SessionService, deps.TokenService, deps.ClientService, deps.ScopeService)
+	authHandler := handlers.NewAuthHandler(deps.Logger, deps.TemplateCache, deps.ClientService, deps.ScopeService, deps.TokenService)
+
+	// == Route Definitions ==
+
+	// --- Static File Server ---
 	staticFS, _ := fs.Sub(web.Static, "static")
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
-	// --- Initialize Middleware ---
-	authMiddleware := middleware.NewAuthMiddleware(deps.Logger, deps.SessionService, deps.UserStore)
-
-	// --- Frontend Handlers ---
-	frontendHandler := handlers.NewFrontendHandler(deps.Logger, deps.TemplateCache, deps.AuthService, deps.SessionService, deps.TokenService, deps.ClientService, deps.ScopeService)
-
+	// --- Public User-Facing Routes (No Auth Required) ---
 	mux.HandleFunc("GET /login", frontendHandler.LoginPage)
 	mux.HandleFunc("POST /login", frontendHandler.Login)
+	mux.HandleFunc("POST /logout", frontendHandler.Logout)
 
+	// --- Protected User-Facing Routes (Login Required) ---
 	mux.Handle("/device", authMiddleware.RequireAuth(http.HandlerFunc(frontendHandler.DeviceFlow)))
-
-	// --- OAuth2 Endpoints ---
-	authHandler := handlers.NewAuthHandler(
-		deps.Logger,
-		deps.TemplateCache,
-		deps.ClientService,
-		deps.ScopeService,
-		deps.TokenService,
-	)
-
-	// The AuthorizeFlow handler is protected by the auth middleware.
 	mux.Handle("/oauth2/authorize", authMiddleware.RequireAuth(http.HandlerFunc(authHandler.AuthorizeFlow)))
 
-	// The /token endpoint is for clients, so it's NOT protected by session auth.
-	tokenHandler := deps.RateLimiter.PerClient(http.HandlerFunc(authHandler.Token))
-	mux.Handle("POST /oauth2/token", tokenHandler)
-
-	mux.HandleFunc("POST /oauth2/device_authorization", authHandler.DeviceAuthorization)
-
-	// Device Flow User-Facing Pages (requires login)
 	deviceConsentHandler := http.HandlerFunc(authHandler.DeviceConsentFlow)
 	mux.Handle("GET /oauth2/authorize/device", authMiddleware.RequireAuth(deviceConsentHandler))
 
 	deviceConsentPostHandler := http.HandlerFunc(authHandler.HandleDeviceConsent)
 	mux.Handle("POST /oauth2/authorize/device/consent", authMiddleware.RequireAuth(deviceConsentPostHandler))
 
-	// --- OAuth2 Metadata Endpoints ---
+	// --- Admin UI Routes (Login + Admin Role Required) ---
+	adminUI := http.NewServeMux()
+	adminUI.HandleFunc("GET /dashboard", frontendHandler.AdminDashboard)
+	adminUI.HandleFunc("GET /clients", frontendHandler.AdminClientsPage)
+
+	protectedAdminUI := authMiddleware.RequireAuth(authMiddleware.RequireAdmin(adminUI))
+	mux.Handle("/admin/", http.StripPrefix("/admin", protectedAdminUI))
+
+	// --- Admin API Routes (Login + Admin Role Required) ---
+	adminAPI := http.NewServeMux()
+	adminAPI.HandleFunc("GET /clients", deps.AdminHandler.ListClients)
+	adminAPI.HandleFunc("POST /clients", deps.AdminHandler.CreateClient)
+	adminAPI.HandleFunc("GET /clients/{clientID}", deps.AdminHandler.GetClient)
+	adminAPI.HandleFunc("PUT /clients/{clientID}", deps.AdminHandler.UpdateClient)
+	adminAPI.HandleFunc("DELETE /clients/{clientID}", deps.AdminHandler.DeleteClient)
+	protectedAdminAPI := authMiddleware.RequireAuth(authMiddleware.RequireAdmin(adminAPI))
+	mux.Handle("/api/admin/", http.StripPrefix("/api/admin", protectedAdminAPI))
+
+	// --- Public OAuth2 API & Metadata Endpoints ---
+	mux.HandleFunc("POST /oauth2/device_authorization", authHandler.DeviceAuthorization)
 	mux.HandleFunc("POST /oauth2/introspect", deps.IntrospectionHandler.Introspect)
 	mux.HandleFunc("POST /oauth2/revoke", deps.RevocationHandler.Revoke)
-
-	// The path is conventional and well-known to clients.
 	mux.HandleFunc("GET /.well-known/jwks.json", deps.JWKSHandler.ServeJWKS)
-
-	// The path is defined by RFC 8414
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", deps.DiscoveryHandler.ServeDiscoveryDocument)
-
-	// This endpoint supports both GET and POST as per the OIDC spec.
 	mux.HandleFunc("/oauth2/userinfo", deps.UserInfoHandler.GetUserInfo)
 
-	// --- Placeholder for admin dashboard (now also protected) ---
-	mux.Handle("/admin/dashboard", authMiddleware.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Welcome to the dashboard!"))
-	})))
+	// The /token endpoint has its own specific rate limiter.
+	tokenHandler := deps.RateLimiter.PerClient(http.HandlerFunc(authHandler.Token))
+	mux.Handle("POST /oauth2/token", tokenHandler)
 
-	// --- Middleware Configuration ---
+	// == Central Middleware Chain ==
 	var handler http.Handler = mux
 
 	// Conditionally apply CSRF middleware based on environment

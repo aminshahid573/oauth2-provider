@@ -1,0 +1,102 @@
+{{ define "title" }}Client Management{{ end }}
+
+{{ define "header" }}Manage OAuth2 Clients{{ end }}
+
+{{ define "styles" }}
+<!-- No page-specific styles needed -->
+{{ end }}
+
+{{ define "main" }}
+<div class="content-card">
+    <div class="card-header">
+        <h2>Registered Clients</h2>
+        <button class="btn-primary" id="addClientBtn">Add New Client</button>
+    </div>
+    <div id="notification" class="notification hidden"></div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Client Name</th>
+                <th>Client ID</th>
+                <th>Grant Types</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="clientsTableBody">
+            <tr><td colspan="4" class="text-center">Loading clients...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Add/Edit Client Modal -->
+<div id="clientModal" class="modal-backdrop hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="modalTitle">Add New Client</h2>
+            <button id="closeModalBtn" class="close-button">&times;</button>
+        </div>
+        <form id="clientForm" novalidate>
+            <div class="modal-body">
+                <!-- This hidden input is crucial for CSRF protection on AJAX requests -->
+          
+                  <input type="hidden" name="_csrf" value="{{ .CSRFToken }}">
+                <div class="form-group">
+                    <label for="name">Client Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="redirect_uris">Redirect URIs (one per line)</label>
+                    <textarea id="redirect_uris" name="redirect_uris" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Grant Types</label>
+                    <div class="checkbox-group">
+                        <div><input type="checkbox" id="grant_authorization_code" name="grant_types" value="authorization_code"> <label for="grant_authorization_code">Authorization Code</label></div>
+                        <div><input type="checkbox" id="grant_client_credentials" name="grant_types" value="client_credentials"> <label for="grant_client_credentials">Client Credentials</label></div>
+                        <div><input type="checkbox" id="grant_refresh_token" name="grant_types" value="refresh_token"> <label for="grant_refresh_token">Refresh Token</label></div>
+                        <div><input type="checkbox" id="grant_device_code" name="grant_types" value="urn:ietf:params:oauth:grant-type:device_code"> <label for="grant_device_code">Device Code</label></div>
+                        <div><input type="checkbox" id="grant_jwt_bearer" name="grant_types" value="urn:ietf:params:oauth:grant-type:jwt-bearer"> <label for="grant_jwt_bearer">JWT Bearer</label></div>
+                    </div>
+                </div>
+                 <div class="form-group">
+                    <label>Response Types</label>
+                    <div class="checkbox-group">
+                        <div><input type="checkbox" id="response_code" name="response_types" value="code"> <label for="response_code">Code</label></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="scopes">Allowed Scopes (space separated)</label>
+                    <input type="text" id="scopes" name="scopes" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="cancelModalBtn" class="btn-secondary">Cancel</button>
+                <button type="submit" class="btn-primary">Save Client</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- One-time secret display modal -->
+<div id="secretModal" class="modal-backdrop hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Client Created Successfully</h2>
+        </div>
+        <div class="modal-body">
+            <p><strong>Important:</strong> This is the only time the client secret will be displayed. Please copy it and store it securely.</p>
+            <div class="secret-display">
+                <p><strong>Client ID:</strong> <code id="newClientId"></code></p>
+                <p><strong>Client Secret:</strong> <code id="newClientSecret"></code></p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" id="closeSecretModalBtn" class="btn-primary">I have copied the secret</button>
+        </div>
+    </div>
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+<script src="/static/js/admin.js"></script>
+{{ end }}
