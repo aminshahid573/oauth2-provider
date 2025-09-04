@@ -12,6 +12,7 @@ import (
 	"github.com/aminshahid573/oauth2-provider/internal/utils"
 	"github.com/aminshahid573/oauth2-provider/web"
 	"github.com/gorilla/csrf"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // AppDependencies holds the dependencies for the HTTP server.
@@ -37,6 +38,8 @@ type AppDependencies struct {
 
 	AllowedOrigins []string
 	RateLimiter    *middleware.RateLimiter
+
+	Metrics *middleware.MetricsMiddleware
 }
 
 // debugHeaders is a middleware for logging request headers.
@@ -116,8 +119,13 @@ func NewRouter(deps AppDependencies) http.Handler {
 	tokenHandler := deps.RateLimiter.PerClient(http.HandlerFunc(authHandler.Token))
 	mux.Handle("POST /oauth2/token", tokenHandler)
 
+	// --- Public Metrics Endpoint ---
+	mux.Handle("GET /metrics", promhttp.Handler())
+
 	// == Central Middleware Chain ==
 	var handler http.Handler = mux
+
+	handler = deps.Metrics.Wrap(handler)
 
 	// Conditionally apply CSRF middleware based on environment
 	if deps.AppEnv == "development" {
@@ -146,5 +154,9 @@ func NewRouter(deps AppDependencies) http.Handler {
 	// Apply the debug logger last, so it runs first.
 	handler = debugHeaders(handler, deps.Logger)
 
-	return handler
+	topLevelMux := http.NewServeMux()
+	topLevelMux.Handle("GET /metrics", promhttp.Handler())
+	topLevelMux.Handle("/", handler)
+
+	return topLevelMux
 }

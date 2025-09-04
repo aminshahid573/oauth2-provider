@@ -48,6 +48,7 @@ type App struct {
 	AdminHandler         *handlers.AdminHandler
 
 	RateLimiter *middleware.RateLimiter
+	Metrics     *middleware.MetricsMiddleware
 }
 
 func main() {
@@ -127,7 +128,8 @@ func run() error {
 
 	// --- Initialize Middleware Components ---
 	rateLimiter := middleware.NewRateLimiter(redisClient, cfg.RateLimit, logger)
-	logger.Info("rate limiter initialized")
+	metrics := middleware.NewMetricsMiddleware()
+	logger.Info("middleware components initialized")
 
 	clientService := services.NewClientService(dataStore.Client, cfg.BaseURL)
 	authService := services.NewAuthService(dataStore.User)
@@ -177,6 +179,7 @@ func run() error {
 		AdminHandler:         adminHandler,
 
 		RateLimiter: rateLimiter,
+		Metrics:     metrics,
 	}
 
 	// --- HTTP Server ---
@@ -272,5 +275,6 @@ func (a *App) ToServerDependencies() server.AppDependencies {
 
 		AllowedOrigins: a.Config.Security.AllowedOrigins,
 		RateLimiter:    a.RateLimiter,
+		Metrics:        a.Metrics,
 	}
 }
