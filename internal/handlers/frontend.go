@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aminshahid573/oauth2-provider/internal/middleware"
+	"github.com/aminshahid573/oauth2-provider/internal/models"
 	"github.com/aminshahid573/oauth2-provider/internal/services"
 	"github.com/aminshahid573/oauth2-provider/internal/utils"
 )
@@ -19,10 +20,10 @@ type FrontendHandler struct {
 	templateCache  utils.TemplateCache
 	authService    *services.AuthService
 	sessionService *services.SessionService
-	// Add dependencies needed for device flow consent page
-	tokenService  *services.TokenService
-	clientService *services.ClientService
-	scopeService  *services.ScopeService
+	tokenService   *services.TokenService
+	clientService  *services.ClientService
+	scopeService   *services.ScopeService
+	auditService   *services.AuditService
 }
 
 // NewFrontendHandler creates a new FrontendHandler.
@@ -34,6 +35,7 @@ func NewFrontendHandler(
 	tokenService *services.TokenService,
 	clientService *services.ClientService,
 	scopeService *services.ScopeService,
+	auditService *services.AuditService,
 ) *FrontendHandler {
 	return &FrontendHandler{
 		logger:         logger,
@@ -43,6 +45,7 @@ func NewFrontendHandler(
 		tokenService:   tokenService,
 		clientService:  clientService,
 		scopeService:   scopeService,
+		auditService:   auditService,
 	}
 }
 
@@ -106,6 +109,15 @@ func (h *FrontendHandler) Login(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
+	eventData := services.RecordEventData{
+		EventType: models.UserLoginSuccess,
+		ActorID:   user.ID.Hex(),
+		TargetID:  user.ID.Hex(),
+		IPAddress: middleware.GetClientIP(r),
+		UserAgent: r.UserAgent(),
+		Details:   "User logged in successfully via form.",
+	}
+	_ = h.auditService.Record(r.Context(), eventData)
 	if returnTo != "" && strings.HasPrefix(returnTo, "/") {
 		http.Redirect(w, r, returnTo, http.StatusSeeOther)
 		return

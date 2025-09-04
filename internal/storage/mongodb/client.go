@@ -92,3 +92,12 @@ func (r *ClientRepository) Delete(ctx context.Context, clientID string) error {
 	}
 	return nil
 }
+
+// Count returns the total number of client documents.
+func (r *ClientRepository) Count(ctx context.Context) (int64, error) {
+	count, err := r.collection.EstimatedDocumentCount(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count clients: %w", err)
+	}
+	return count, nil
+}

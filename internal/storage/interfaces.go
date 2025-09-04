@@ -16,6 +16,7 @@ type ClientStore interface {
 	List(ctx context.Context) ([]models.Client, error)
 	Update(ctx context.Context, client *models.Client) error
 	Delete(ctx context.Context, clientID string) error
+	Count(ctx context.Context) (int64, error)
 }
 
 // UserStore defines the interface for user data storage.
@@ -24,6 +25,9 @@ type UserStore interface {
 	GetByID(ctx context.Context, id bson.ObjectID) (*models.User, error)
 	Create(ctx context.Context, user *models.User) error
 	List(ctx context.Context) ([]models.User, error)
+	Update(ctx context.Context, user *models.User) error // Add this
+	Delete(ctx context.Context, id bson.ObjectID) error
+	Count(ctx context.Context) (int64, error)
 }
 
 // TokenStore defines the interface for token (auth code, refresh token) storage.
@@ -33,6 +37,13 @@ type TokenStore interface {
 	GetByUserCode(ctx context.Context, userCode string) (*models.Token, error)
 	Update(ctx context.Context, token *models.Token) error
 	DeleteBySignature(ctx context.Context, signature string) error
+	Count(ctx context.Context) (int64, error)
+}
+
+// AuditStore defines the interface for audit event storage.
+type AuditStore interface {
+	Create(ctx context.Context, event *models.AuditEvent) error
+	ListRecent(ctx context.Context, limit int) ([]models.AuditEvent, error)
 }
 
 // SessionStore defines the interface for user session storage (typically Redis).

@@ -321,3 +321,9 @@ body {
 .secret-display code {
     font-weight: bold;
 }
+.stat-number.status-ok {
+    color: #28a745;
+}
+.stat-number.status-error {
+    color: #dc3545;
+}

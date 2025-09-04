@@ -79,3 +79,40 @@ func (r *UserRepository) List(ctx context.Context) ([]models.User, error) {
 	}
 	return users, nil
 }
+
+// Update replaces an existing user document.
+func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
+	user.UpdatedAt = time.Now()
+	filter := bson.M{"_id": user.ID}
+
+	result, err := r.collection.ReplaceOne(ctx, filter, user)
+	if err != nil {
+		return fmt.Errorf("failed to update user %s: %w", user.ID.Hex(), err)
+	}
+	if result.MatchedCount == 0 {
+		return utils.ErrNotFound
+	}
+	return nil
+}
+
+// Delete removes a user from the database by their ID.
+func (r *UserRepository) Delete(ctx context.Context, id bson.ObjectID) error {
+	filter := bson.M{"_id": id}
+	result, err := r.collection.DeleteOne(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to delete user %s: %w", id.Hex(), err)
+	}
+	if result.DeletedCount == 0 {
+		return utils.ErrNotFound
+	}
+	return nil
+}
+
+// Count returns the total number of user documents.
+func (r *UserRepository) Count(ctx context.Context) (int64, error) {
+	count, err := r.collection.EstimatedDocumentCount(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count users: %w", err)
+	}
+	return count, nil
+}

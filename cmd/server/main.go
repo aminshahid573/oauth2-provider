@@ -26,20 +26,22 @@ import (
 
 // App holds all application-wide dependencies, acting as a dependency injection container.
 type App struct {
-	Config         *config.Config
-	Logger         *slog.Logger
-	TemplateCache  utils.TemplateCache
-	DataStore      *storage.DataStore
-	SessionStore   storage.SessionStore
-	PKCEStore      storage.PKCEStore
-	JWTManager     *utils.JWTManager
-	ClientService  *services.ClientService
-	AuthService    *services.AuthService
-	TokenService   *services.TokenService
-	PKCEService    *services.PKCEService
-	SessionService *services.SessionService
-	ScopeService   *services.ScopeService
-	UserService    *services.UserService
+	Config           *config.Config
+	Logger           *slog.Logger
+	TemplateCache    utils.TemplateCache
+	DataStore        *storage.DataStore
+	SessionStore     storage.SessionStore
+	PKCEStore        storage.PKCEStore
+	JWTManager       *utils.JWTManager
+	ClientService    *services.ClientService
+	AuthService      *services.AuthService
+	TokenService     *services.TokenService
+	PKCEService      *services.PKCEService
+	SessionService   *services.SessionService
+	ScopeService     *services.ScopeService
+	UserService      *services.UserService
+	DashboardService *services.DashboardService
+	AuditService     *services.AuditService
 
 	IntrospectionHandler *handlers.IntrospectionHandler
 	RevocationHandler    *handlers.RevocationHandler
@@ -117,6 +119,7 @@ func run() error {
 		User:   mongodb.NewUserRepository(db),
 		Token:  mongodb.NewTokenRepository(db),
 	}
+	auditStore := mongodb.NewAuditRepository(db)
 	sessionStore := redis.NewSessionRepository(redisClient)
 	pkceStore := redis.NewPKCERepository(redisClient)
 	logger.Info("data stores initialized")
@@ -139,9 +142,11 @@ func run() error {
 	authService := services.NewAuthService(dataStore.User)
 	tokenService := services.NewTokenService(jwtManager, dataStore.Token, pkceStore)
 	pkceService := services.NewPKCEService(pkceStore)
+	auditService := services.NewAuditService(auditStore)
 	sessionService := services.NewSessionService(sessionStore)
 	scopeService := services.NewScopeService()
 	userService := services.NewUserService(dataStore.User)
+	dashboardService := services.NewDashboardService(dataStore.Client, dataStore.User, dataStore.Token)
 
 	logger.Info("core services initialized")
 
@@ -152,7 +157,7 @@ func run() error {
 	jwksHandler := handlers.NewJWKSHandler(logger, jwtManager)
 	discoveryHandler := handlers.NewDiscoveryHandler(logger, clientService)
 	userInfoHandler := handlers.NewUserInfoHandler(logger, jwtManager, dataStore.User)
-	adminHandler := handlers.NewAdminHandler(logger, clientService, userService)
+	adminHandler := handlers.NewAdminHandler(logger, clientService, userService, dashboardService, auditService)
 	logger.Info("metadata handlers initialized")
 
 	// --- Template Cache ---
@@ -164,20 +169,22 @@ func run() error {
 
 	// --- Assemble App Container ---
 	app := &App{
-		Config:         cfg,
-		Logger:         logger,
-		TemplateCache:  templateCache,
-		DataStore:      dataStore,
-		SessionStore:   sessionStore,
-		PKCEStore:      pkceStore,
-		JWTManager:     jwtManager,
-		ClientService:  clientService,
-		AuthService:    authService,
-		TokenService:   tokenService,
-		PKCEService:    pkceService,
-		SessionService: sessionService,
-		ScopeService:   scopeService,
-		UserService:    userService,
+		Config:           cfg,
+		Logger:           logger,
+		TemplateCache:    templateCache,
+		DataStore:        dataStore,
+		SessionStore:     sessionStore,
+		PKCEStore:        pkceStore,
+		JWTManager:       jwtManager,
+		ClientService:    clientService,
+		AuthService:      authService,
+		TokenService:     tokenService,
+		PKCEService:      pkceService,
+		SessionService:   sessionService,
+		ScopeService:     scopeService,
+		UserService:      userService,
+		DashboardService: dashboardService,
+		AuditService:     auditService,
 
 		IntrospectionHandler: introspectionHandler,
 		RevocationHandler:    revocationHandler,
@@ -268,13 +275,15 @@ func (a *App) ToServerDependencies() server.AppDependencies {
 		BaseURL:       a.Config.BaseURL,
 		AppEnv:        a.Config.AppEnv,
 
-		AuthService:    a.AuthService,
-		SessionService: a.SessionService,
-		ClientService:  a.ClientService,
-		ScopeService:   a.ScopeService,
-		TokenService:   a.TokenService,
-		UserStore:      a.DataStore.User,
-		UserService:    a.UserService,
+		AuthService:      a.AuthService,
+		SessionService:   a.SessionService,
+		ClientService:    a.ClientService,
+		ScopeService:     a.ScopeService,
+		TokenService:     a.TokenService,
+		UserStore:        a.DataStore.User,
+		UserService:      a.UserService,
+		DashboardService: a.DashboardService,
+		AuditService:     a.AuditService,
 
 		IntrospectionHandler: a.IntrospectionHandler,
 		RevocationHandler:    a.RevocationHandler,

@@ -12,52 +12,157 @@ document.addEventListener('DOMContentLoaded', () => {
         loadUsers();
         setupUserPageEventListeners();
     }
+
+    // Dashboard page logic
+    const dashboardGrid = document.querySelector('.dashboard-grid');
+    if (dashboardGrid) {
+        loadDashboardStats();
+        loadRecentActivities();
+    }
 });
+
+async function loadDashboardStats() {
+    try {
+        const response = await fetch('/api/admin/stats');
+        if (!response.ok) {
+            throw new Error('Failed to fetch dashboard stats.');
+        }
+        const stats = await response.json();
+
+        document.getElementById('totalClients').textContent = stats.total_clients;
+        document.getElementById('totalUsers').textContent = stats.total_users;
+        document.getElementById('activeTokens').textContent = stats.active_tokens;
+
+    } catch (error) {
+        console.error('Error loading dashboard stats:', error);
+        document.getElementById('serviceStatus').textContent = 'Error';
+        document.getElementById('serviceStatus').classList.remove('status-ok');
+        document.getElementById('serviceStatus').classList.add('status-error');
+    }
+}
+
+async function loadRecentActivities() {
+    const tableBody = document.getElementById('auditLogBody');
+    try {
+        const response = await fetch('/api/admin/audit-logs');
+        if (!response.ok) throw new Error('Failed to fetch audit logs.');
+        const events = await response.json();
+
+        tableBody.innerHTML = '';
+        if (!events || events.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center">No recent activity found.</td></tr>';
+            return;
+        }
+
+        events.forEach(event => {
+            const row = document.createElement('tr');
+            const timestamp = new Date(event.timestamp).toLocaleString();
+            row.innerHTML = `
+                <td>${escapeHTML(timestamp)}</td>
+                <td><code>${escapeHTML(event.event_type)}</code></td>
+                <td><code>${escapeHTML(event.actor_id)}</code></td>
+                <td>${escapeHTML(event.details)}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Error loading recent activities:', error);
+        tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Failed to load activities.</td></tr>';
+    }
+}
 
 // --- USER MANAGEMENT FUNCTIONS ---
 
 function setupUserPageEventListeners() {
     const addUserBtn = document.getElementById('addUserBtn');
     const userModal = document.getElementById('userModal');
-    const closeModalBtn = document.getElementById('closeModalBtn');
-    const cancelModalBtn = document.getElementById('cancelModalBtn');
+    const closeModalBtn = userModal.querySelector('.close-button');
+    const cancelModalBtn = userModal.querySelector('.btn-secondary');
     const userForm = document.getElementById('userForm');
 
-    addUserBtn.addEventListener('click', () => userModal.classList.remove('hidden'));
+    addUserBtn.addEventListener('click', () => {
+        userForm.reset();
+        userForm.removeAttribute('data-editing-user-id');
+        userModal.querySelector('#modalTitle').textContent = 'Add New User';
+        userModal.querySelector('#password').placeholder = '';
+        userModal.classList.remove('hidden');
+    });
     closeModalBtn.addEventListener('click', () => userModal.classList.add('hidden'));
     cancelModalBtn.addEventListener('click', () => userModal.classList.add('hidden'));
     userForm.addEventListener('submit', handleUserFormSubmit);
+
+    // Event delegation for edit and delete
+    document.getElementById('usersTableBody').addEventListener('click', (event) => {
+        if (event.target.classList.contains('delete-btn')) {
+            event.preventDefault();
+            const userID = event.target.dataset.userId;
+            if (confirm(`Are you sure you want to delete user ${userID}?`)) {
+                deleteUser(userID);
+            }
+        }
+        if (event.target.classList.contains('edit-btn')) {
+            event.preventDefault();
+            const userID = event.target.dataset.userId;
+            handleUserEditClick(userID);
+        }
+    });
+}
+
+async function handleUserEditClick(userID) {
+    try {
+        const response = await fetch(`/api/admin/users/${userID}`);
+        if (!response.ok) throw new Error('Failed to fetch user details.');
+        const user = await response.json();
+
+        const form = document.getElementById('userForm');
+        form.reset();
+        form.setAttribute('data-editing-user-id', user.id);
+
+        const modal = document.getElementById('userModal');
+        modal.querySelector('#modalTitle').textContent = `Edit User: ${user.username}`;
+        form.elements.username.value = user.username;
+        form.elements.role.value = user.role;
+        // For security, we don't pre-fill the password.
+        // We add a placeholder to indicate it's optional.
+        form.elements.password.placeholder = 'Leave blank to keep current password';
+
+        modal.classList.remove('hidden');
+    } catch (error) {
+        showNotification(error.message, 'error');
+    }
 }
 
 async function handleUserFormSubmit(event) {
     event.preventDefault();
     const form = event.target;
-    const formData = new FormData(form);
-    const csrfToken = form.querySelector('input[name="_csrf"]').value;
+    const editingUserID = form.dataset.editingUserId;
+    const method = editingUserID ? 'PUT' : 'POST';
+    const url = editingUserID ? `/api/admin/users/${editingUserID}` : '/api/admin/users';
 
+    const csrfToken = form.querySelector('input[name="_csrf"]').value;
     const payload = {
-        username: formData.get('username'),
-        password: formData.get('password'),
-        role: formData.get('role'),
+        username: form.elements.username.value,
+        role: form.elements.role.value,
+        password: form.elements.password.value,
     };
+    // Don't send an empty password on update unless the user typed it
+    if (method === 'PUT' && payload.password === '') {
+        delete payload.password;
+    }
 
     try {
-        const response = await fetch('/api/admin/users', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': csrfToken
-            },
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
             body: JSON.stringify(payload)
         });
         const result = await response.json();
-        if (!response.ok) throw new Error(result.error_description || 'Failed to create user.');
+        if (!response.ok) throw new Error(result.error_description || `Failed to ${editingUserID ? 'update' : 'create'} user.`);
 
         document.getElementById('userModal').classList.add('hidden');
-        showNotification(`User "${result.username}" created successfully.`, 'success');
+        showNotification(`User "${result.username}" ${editingUserID ? 'updated' : 'created'} successfully.`, 'success');
         loadUsers();
     } catch (error) {
-        console.error('Error creating user:', error);
         showNotification(error.message, 'error');
     }
 }
@@ -89,6 +194,24 @@ async function loadUsers() {
     } catch (error) {
         console.error('Failed to load users:', error);
         tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Failed to load users.</td></tr>';
+    }
+}
+
+async function deleteUser(userID) {
+    const csrfToken = document.querySelector('input[name="_csrf"]').value;
+    try {
+        const response = await fetch(`/api/admin/users/${userID}`, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-Token': csrfToken }
+        });
+        if (!response.ok) {
+            const result = await response.json().catch(() => ({}));
+            throw new Error(result.error_description || 'Failed to delete user.');
+        }
+        showNotification(`User ${userID} deleted successfully.`, 'success');
+        loadUsers();
+    } catch (error) {
+        showNotification(error.message, 'error');
     }
 }
 

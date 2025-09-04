@@ -85,3 +85,17 @@ func (r *TokenRepository) DeleteBySignature(ctx context.Context, signature strin
 	_, err := r.collection.DeleteOne(ctx, filter)
 	return err
 }
+
+// Count returns the total number of token documents (auth codes, refresh tokens, etc.).
+func (r *TokenRepository) Count(ctx context.Context) (int64, error) {
+	// We count only non-expired refresh tokens to represent "active" tokens.
+	filter := bson.M{
+		"type":       models.TokenTypeRefreshToken,
+		"expires_at": bson.M{"$gt": time.Now()},
+	}
+	count, err := r.collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count active tokens: %w", err)
+	}
+	return count, nil
+}

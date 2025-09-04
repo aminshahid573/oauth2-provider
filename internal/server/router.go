@@ -17,16 +17,18 @@ import (
 
 // AppDependencies holds the dependencies for the HTTP server.
 type AppDependencies struct {
-	Logger         *slog.Logger
-	TemplateCache  utils.TemplateCache
-	CSRFKey        string
-	AuthService    *services.AuthService
-	SessionService *services.SessionService
-	ClientService  *services.ClientService
-	ScopeService   *services.ScopeService
-	TokenService   *services.TokenService
-	UserStore      storage.UserStore
-	UserService    *services.UserService
+	Logger           *slog.Logger
+	TemplateCache    utils.TemplateCache
+	CSRFKey          string
+	AuthService      *services.AuthService
+	SessionService   *services.SessionService
+	ClientService    *services.ClientService
+	ScopeService     *services.ScopeService
+	TokenService     *services.TokenService
+	UserStore        storage.UserStore
+	UserService      *services.UserService
+	DashboardService *services.DashboardService
+	AuditService     *services.AuditService
 
 	BaseURL string
 	AppEnv  string
@@ -63,12 +65,12 @@ func debugHeaders(next http.Handler, logger *slog.Logger) http.Handler {
 func NewRouter(deps AppDependencies) http.Handler {
 	deps.Logger.Info("Router configuration", "AppEnv", deps.AppEnv, "BaseURL", deps.BaseURL)
 
-	// The main router for all application routes.
+	// The main router for all application routes.a
 	mux := http.NewServeMux()
 
 	// --- Initialize Handlers and Middleware from Dependencies ---
 	authMiddleware := middleware.NewAuthMiddleware(deps.Logger, deps.SessionService, deps.UserStore)
-	frontendHandler := handlers.NewFrontendHandler(deps.Logger, deps.TemplateCache, deps.AuthService, deps.SessionService, deps.TokenService, deps.ClientService, deps.ScopeService)
+	frontendHandler := handlers.NewFrontendHandler(deps.Logger, deps.TemplateCache, deps.AuthService, deps.SessionService, deps.TokenService, deps.ClientService, deps.ScopeService, deps.AuditService)
 	authHandler := handlers.NewAuthHandler(deps.Logger, deps.TemplateCache, deps.ClientService, deps.ScopeService, deps.TokenService)
 
 	// == Route Definitions ==
@@ -103,6 +105,9 @@ func NewRouter(deps AppDependencies) http.Handler {
 
 	// --- Admin API Routes (Login + Admin Role Required) ---
 	adminAPI := http.NewServeMux()
+	adminAPI.HandleFunc("GET /stats", deps.AdminHandler.GetStats)
+	adminAPI.HandleFunc("GET /audit-logs", deps.AdminHandler.ListAuditEvents)
+
 	adminAPI.HandleFunc("GET /clients", deps.AdminHandler.ListClients)
 	adminAPI.HandleFunc("POST /clients", deps.AdminHandler.CreateClient)
 	adminAPI.HandleFunc("GET /clients/{clientID}", deps.AdminHandler.GetClient)
@@ -111,6 +116,9 @@ func NewRouter(deps AppDependencies) http.Handler {
 
 	adminAPI.HandleFunc("GET /users", deps.AdminHandler.ListUsers)
 	adminAPI.HandleFunc("POST /users", deps.AdminHandler.CreateUser)
+	adminAPI.HandleFunc("GET /users/{userID}", deps.AdminHandler.GetUser)
+	adminAPI.HandleFunc("PUT /users/{userID}", deps.AdminHandler.UpdateUser)
+	adminAPI.HandleFunc("DELETE /users/{userID}", deps.AdminHandler.DeleteUser)
 
 	protectedAdminAPI := authMiddleware.RequireAuth(authMiddleware.RequireAdmin(adminAPI))
 	mux.Handle("/api/admin/", http.StripPrefix("/api/admin", protectedAdminAPI))
@@ -159,8 +167,10 @@ func NewRouter(deps AppDependencies) http.Handler {
 
 	handler = middleware.CORS(deps.AllowedOrigins)(handler)
 
-	// Apply the debug logger last, so it runs first.
-	handler = debugHeaders(handler, deps.Logger)
+	handler = middleware.StructuredLogger(deps.Logger)(handler)
+
+	// uncomment while debugging
+	// handler = debugHeaders(handler, deps.Logger)
 
 	topLevelMux := http.NewServeMux()
 	topLevelMux.Handle("GET /metrics", promhttp.Handler())
