@@ -177,5 +177,16 @@ func NewRouter(deps AppDependencies) http.Handler {
 	topLevelMux.Handle("GET /healthz", deps.HealthHandler)
 	topLevelMux.Handle("/", handler)
 
-	return topLevelMux
+	finalHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Create a response writer wrapper to check if a response was written.
+		rw := middleware.NewResponseWriter(w)
+		topLevelMux.ServeHTTP(rw, r)
+
+		// If the status code is 404, it means no route was matched by any mux.
+		if rw.StatusCode() == http.StatusNotFound {
+			utils.HandleError(w, r, deps.Logger, deps.TemplateCache, utils.ErrNotFound)
+		}
+	})
+
+	return finalHandler
 }

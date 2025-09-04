@@ -1,0 +1,16 @@
+{{ define "title" }}{{ .Data.Title }}{{ end }}
+
+{{ define "styles" }}
+    <link rel="stylesheet" href="/static/css/auth.css">
+{{ end }}
+
+{{ define "main" }}
+<div class="auth-card error-page">
+    <h1>{{ .Data.StatusCode }}</h1>
+    <h2>{{ .Data.Title }}</h2>
+    <p>{{ .Data.Message }}</p>
+    <a href="/" class="btn-primary">Go to Homepage</a>
+</div>
+{{ end }}
+
+{{ define "scripts" }}{{ end }}

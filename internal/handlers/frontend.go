@@ -63,7 +63,7 @@ func (h *FrontendHandler) LoginPage(w http.ResponseWriter, r *http.Request) {
 // Login handles the submission of the login form.
 func (h *FrontendHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		utils.HandleError(w, r, h.logger, h.templateCache, utils.ErrBadRequest)
 		return
 	}
 	username := r.PostForm.Get("username")
@@ -88,13 +88,13 @@ func (h *FrontendHandler) Login(w http.ResponseWriter, r *http.Request) {
 			h.templateCache.Render(w, r, "base.html", "login.html", data)
 			return
 		}
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleError(w, r, h.logger, h.templateCache, err)
 		return
 	}
 
 	session, err := h.sessionService.CreateSession(r.Context(), user.ID)
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleError(w, r, h.logger, h.templateCache, err)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (h *FrontendHandler) DeviceFlow(w http.ResponseWriter, r *http.Request) {
 
 	// POST request logic
 	if err := r.ParseForm(); err != nil {
-		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		utils.HandleError(w, r, h.logger, h.templateCache, utils.ErrBadRequest)
 		return
 	}
 	userCode := strings.ToUpper(r.PostForm.Get("user_code"))

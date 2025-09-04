@@ -70,32 +70,32 @@ func (h *AuthHandler) showConsentPage(w http.ResponseWriter, r *http.Request) {
 
 	if codeChallenge != "" {
 		if codeChallengeMethod != "S256" {
-			utils.HandleError(w, r, h.logger, &utils.AppError{Code: "invalid_request", Message: "code_challenge_method must be S256.", HTTPStatus: http.StatusBadRequest})
+			utils.HandleError(w, r, h.logger, h.templateCache, &utils.AppError{Code: "invalid_request", Message: "code_challenge_method must be S256.", HTTPStatus: http.StatusBadRequest})
 			return
 		}
 	}
 
 	if clientID == "" || redirectURI == "" || responseType != "code" {
-		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		utils.HandleError(w, r, h.logger, h.templateCache, utils.ErrBadRequest)
 		return
 	}
 
 	client, err := h.clientService.GetClient(r.Context(), clientID)
 	if err != nil {
-		utils.HandleError(w, r, h.logger, utils.ErrInvalidClient)
+		utils.HandleError(w, r, h.logger, h.templateCache, utils.ErrInvalidClient)
 		return
 	}
 
 	// The provided redirect_uri MUST be one of the URIs registered by the client.
 	if !slices.Contains(client.RedirectURIs, redirectURI) {
 		h.logger.Warn("invalid redirect_uri provided", "client_id", clientID, "provided_uri", redirectURI)
-		utils.HandleError(w, r, h.logger, &utils.AppError{Code: "invalid_request", Message: "The provided redirect_uri is not registered for this client.", HTTPStatus: http.StatusBadRequest})
+		utils.HandleError(w, r, h.logger, h.templateCache, &utils.AppError{Code: "invalid_request", Message: "The provided redirect_uri is not registered for this client.", HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
 	requestedScopes := strings.Fields(scope)
 	if !h.scopeService.ValidateScopes(requestedScopes) {
-		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		utils.HandleError(w, r, h.logger, h.templateCache, utils.ErrBadRequest)
 		return
 	}
 
@@ -112,12 +112,12 @@ func (h *AuthHandler) showConsentPage(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) handleConsent(w http.ResponseWriter, r *http.Request) {
 	user, ok := middleware.GetUserFromContext(r)
 	if !ok {
-		utils.HandleError(w, r, h.logger, utils.ErrInternal)
+		utils.HandleError(w, r, h.logger, h.templateCache, utils.ErrInternal)
 		return
 	}
 
 	if err := r.ParseForm(); err != nil {
-		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		utils.HandleError(w, r, h.logger, h.templateCache, utils.ErrBadRequest)
 		return
 	}
 
@@ -131,7 +131,7 @@ func (h *AuthHandler) handleConsent(w http.ResponseWriter, r *http.Request) {
 
 	redirectURL, err := url.Parse(redirectURIStr)
 	if err != nil {
-		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		utils.HandleError(w, r, h.logger, h.templateCache, utils.ErrBadRequest)
 		return
 	}
 	query := redirectURL.Query()
@@ -149,14 +149,14 @@ func (h *AuthHandler) handleConsent(w http.ResponseWriter, r *http.Request) {
 	requestedScopes := strings.Fields(scope)
 	code, err := h.tokenService.GenerateAndStoreAuthorizationCode(r.Context(), user.ID.Hex(), clientID, requestedScopes)
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleError(w, r, h.logger, h.templateCache, err)
 		return
 	}
 
 	if codeChallenge != "" && codeChallengeMethod == "S256" {
 		err := h.tokenService.StorePKCEChallenge(r.Context(), code, codeChallenge)
 		if err != nil {
-			utils.HandleError(w, r, h.logger, err)
+			utils.HandleError(w, r, h.logger, h.templateCache, err)
 			return
 		}
 	}
@@ -174,7 +174,7 @@ func (h *AuthHandler) handleConsent(w http.ResponseWriter, r *http.Request) {
 // DeviceAuthorization handles POST requests to the device_authorization endpoint.
 func (h *AuthHandler) DeviceAuthorization(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		utils.HandleError(w, r, h.logger, h.templateCache, utils.ErrBadRequest)
 		return
 	}
 
@@ -183,13 +183,13 @@ func (h *AuthHandler) DeviceAuthorization(w http.ResponseWriter, r *http.Request
 
 	client, err := h.clientService.GetClient(r.Context(), clientID)
 	if err != nil {
-		utils.HandleError(w, r, h.logger, utils.ErrInvalidClient)
+		utils.HandleError(w, r, h.logger, h.templateCache, utils.ErrInvalidClient)
 		return
 	}
 
 	deviceCode, userCode, err := h.tokenService.GenerateAndStoreDeviceCode(r.Context(), client.ClientID, strings.Fields(scope))
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleError(w, r, h.logger, h.templateCache, err)
 		return
 	}
 
@@ -211,7 +211,7 @@ func (h *AuthHandler) DeviceAuthorization(w http.ResponseWriter, r *http.Request
 func (h *AuthHandler) DeviceConsentFlow(w http.ResponseWriter, r *http.Request) {
 	userCode := r.URL.Query().Get("user_code")
 	if userCode == "" {
-		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		utils.HandleError(w, r, h.logger, h.templateCache, utils.ErrBadRequest)
 		return
 	}
 
@@ -219,13 +219,13 @@ func (h *AuthHandler) DeviceConsentFlow(w http.ResponseWriter, r *http.Request) 
 	token, err := h.tokenService.GetTokenByUserCode(r.Context(), userCode)
 	if err != nil {
 		// TODO: Render a proper error page
-		utils.HandleError(w, r, h.logger, &utils.AppError{Code: "INVALID_CODE", Message: "Invalid or expired code.", HTTPStatus: http.StatusBadRequest})
+		utils.HandleError(w, r, h.logger, h.templateCache, &utils.AppError{Code: "INVALID_CODE", Message: "Invalid or expired code.", HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
 	client, err := h.clientService.GetClient(r.Context(), token.ClientID)
 	if err != nil {
-		utils.HandleError(w, r, h.logger, utils.ErrInvalidClient)
+		utils.HandleError(w, r, h.logger, h.templateCache, utils.ErrInvalidClient)
 		return
 	}
 
@@ -242,12 +242,12 @@ func (h *AuthHandler) DeviceConsentFlow(w http.ResponseWriter, r *http.Request) 
 func (h *AuthHandler) HandleDeviceConsent(w http.ResponseWriter, r *http.Request) {
 	user, ok := middleware.GetUserFromContext(r)
 	if !ok {
-		utils.HandleError(w, r, h.logger, utils.ErrInternal)
+		utils.HandleError(w, r, h.logger, h.templateCache, utils.ErrInternal)
 		return
 	}
 
 	if err := r.ParseForm(); err != nil {
-		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		utils.HandleError(w, r, h.logger, h.templateCache, utils.ErrBadRequest)
 		return
 	}
 
@@ -261,7 +261,7 @@ func (h *AuthHandler) HandleDeviceConsent(w http.ResponseWriter, r *http.Request
 	_, err := h.tokenService.ApproveDeviceCode(r.Context(), userCode, user.ID.Hex())
 	if err != nil {
 		// TODO: Show an error page
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleError(w, r, h.logger, h.templateCache, err)
 		return
 	}
 
@@ -588,13 +588,13 @@ func (h *AuthHandler) handleDeviceCodeGrant(w http.ResponseWriter, r *http.Reque
 
 	accessToken, err := h.tokenService.GenerateAccessToken(token.UserID, token.ClientID, token.Scopes)
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleError(w, r, h.logger, h.templateCache, err)
 		return
 	}
 
 	refreshToken, err := h.tokenService.GenerateAndStoreRefreshToken(r.Context(), token.UserID, token.ClientID, token.Scopes)
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleError(w, r, h.logger, h.templateCache, err)
 		return
 	}
 

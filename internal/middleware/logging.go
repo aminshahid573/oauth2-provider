@@ -19,7 +19,7 @@ func StructuredLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 
 			start := time.Now()
 			// Use the shared responseWriter from util.go
-			rw := newResponseWriter(w)
+			rw := NewResponseWriter(w)
 
 			// Serve the request
 			next.ServeHTTP(rw, r)
@@ -35,7 +35,7 @@ func StructuredLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 			logger.Info("http request",
 				slog.String("method", r.Method),
 				slog.String("path", r.URL.Path),
-				slog.Int("status", rw.statusCode),
+				slog.Int("status", rw.StatusCode()),
 				slog.Duration("duration", duration),
 				slog.String("ip", GetClientIP(r)), // Use shared GetClientIP
 				slog.String("user_agent", r.UserAgent()),

@@ -7,19 +7,23 @@ import (
 )
 
 // responseWriter is a wrapper for http.ResponseWriter to capture the status code.
-type responseWriter struct {
+type ResponseWriter struct {
 	http.ResponseWriter
 	statusCode int
 }
 
-// newResponseWriter creates a new responseWriter wrapper.
-func newResponseWriter(w http.ResponseWriter) *responseWriter {
+// NewResponseWriter creates a new responseWriter wrapper.
+func NewResponseWriter(w http.ResponseWriter) *ResponseWriter {
 	// Default to 200 OK if WriteHeader is not called.
-	return &responseWriter{w, http.StatusOK}
+	return &ResponseWriter{w, http.StatusOK}
+}
+
+func (rw *ResponseWriter) StatusCode() int {
+	return rw.statusCode
 }
 
 // WriteHeader captures the status code before writing it to the underlying ResponseWriter.
-func (rw *responseWriter) WriteHeader(code int) {
+func (rw *ResponseWriter) WriteHeader(code int) {
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
 }

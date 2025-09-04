@@ -136,3 +136,30 @@
 .btn-secondary:hover {
     background-color: #f0f0f0;
 }
+.error-page {
+    text-align: center;
+}
+
+.error-page h1 {
+    font-size: 6rem;
+    margin-bottom: 0;
+    color: #dc3545;
+}
+
+.error-page h2 {
+    font-size: 1.75rem;
+    margin-top: 0;
+    color: #333;
+}
+
+.error-page p {
+    color: #666;
+    margin-bottom: 2rem;
+}
+
+.error-page .btn-primary {
+    text-decoration: none;
+    display: inline-block;
+    width: auto;
+    padding: 0.75rem 2rem;
+}

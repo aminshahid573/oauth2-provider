@@ -65,7 +65,7 @@ func (tc TemplateCache) Render(w http.ResponseWriter, r *http.Request, layout, p
 	ts, ok := tc[page]
 	if !ok {
 		err := fmt.Errorf("the template %s does not exist", page)
-		HandleError(w, r, slog.Default(), err)
+		HandleError(w, r, slog.Default(), tc, err)
 		return
 	}
 
@@ -80,7 +80,7 @@ func (tc TemplateCache) Render(w http.ResponseWriter, r *http.Request, layout, p
 	// Execute the specified layout template.
 	err := ts.ExecuteTemplate(buf, layout, templateData)
 	if err != nil {
-		HandleError(w, r, slog.Default(), err)
+		HandleError(w, r, slog.Default(), tc, err)
 		return
 	}
 

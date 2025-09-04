@@ -39,7 +39,7 @@ func NewAdminHandler(logger *slog.Logger, clientService *services.ClientService,
 func (h *AdminHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	stats, err := h.dashboardService.GetStats(r.Context())
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleAPIError(w, r, h.logger, err)
 		return
 	}
 
@@ -51,7 +51,7 @@ func (h *AdminHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) ListClients(w http.ResponseWriter, r *http.Request) {
 	clients, err := h.clientService.ListClients(r.Context())
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleAPIError(w, r, h.logger, err)
 		return
 	}
 
@@ -85,18 +85,18 @@ func (h *AdminHandler) ListClients(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) CreateClient(w http.ResponseWriter, r *http.Request) {
 	var req services.CreateClientRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		utils.HandleAPIError(w, r, h.logger, utils.ErrBadRequest)
 		return
 	}
 
 	if err := h.validate.Struct(req); err != nil {
-		utils.HandleError(w, r, h.logger, &utils.AppError{Code: "VALIDATION_ERROR", Message: err.Error(), HTTPStatus: http.StatusBadRequest})
+		utils.HandleAPIError(w, r, h.logger, &utils.AppError{Code: "VALIDATION_ERROR", Message: err.Error(), HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
 	client, plaintextSecret, err := h.clientService.CreateClient(r.Context(), req)
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleAPIError(w, r, h.logger, err)
 		return
 	}
 
@@ -130,12 +130,12 @@ func (h *AdminHandler) CreateClient(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) DeleteClient(w http.ResponseWriter, r *http.Request) {
 	clientID := r.PathValue("clientID")
 	if clientID == "" {
-		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		utils.HandleAPIError(w, r, h.logger, utils.ErrBadRequest)
 		return
 	}
 
 	if err := h.clientService.DeleteClient(r.Context(), clientID); err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleAPIError(w, r, h.logger, err)
 		return
 	}
 
@@ -147,7 +147,7 @@ func (h *AdminHandler) GetClient(w http.ResponseWriter, r *http.Request) {
 	clientID := r.PathValue("clientID")
 	client, err := h.clientService.GetClientByID(r.Context(), clientID)
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleAPIError(w, r, h.logger, err)
 		return
 	}
 
@@ -172,18 +172,18 @@ func (h *AdminHandler) UpdateClient(w http.ResponseWriter, r *http.Request) {
 
 	var req services.UpdateClientRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		utils.HandleAPIError(w, r, h.logger, utils.ErrBadRequest)
 		return
 	}
 
 	if err := h.validate.Struct(req); err != nil {
-		utils.HandleError(w, r, h.logger, &utils.AppError{Code: "VALIDATION_ERROR", Message: err.Error(), HTTPStatus: http.StatusBadRequest})
+		utils.HandleAPIError(w, r, h.logger, &utils.AppError{Code: "VALIDATION_ERROR", Message: err.Error(), HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
 	updatedClient, err := h.clientService.UpdateClient(r.Context(), clientID, req)
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleAPIError(w, r, h.logger, err)
 		return
 	}
 
@@ -206,7 +206,7 @@ func (h *AdminHandler) UpdateClient(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.userService.ListUsers(r.Context())
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleAPIError(w, r, h.logger, err)
 		return
 	}
 
@@ -234,18 +234,18 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req services.CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		utils.HandleAPIError(w, r, h.logger, utils.ErrBadRequest)
 		return
 	}
 
 	if err := h.validate.Struct(req); err != nil {
-		utils.HandleError(w, r, h.logger, &utils.AppError{Code: "VALIDATION_ERROR", Message: err.Error(), HTTPStatus: http.StatusBadRequest})
+		utils.HandleAPIError(w, r, h.logger, &utils.AppError{Code: "VALIDATION_ERROR", Message: err.Error(), HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
 	user, err := h.userService.CreateUser(r.Context(), req)
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleAPIError(w, r, h.logger, err)
 		return
 	}
 
@@ -265,7 +265,7 @@ func (h *AdminHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("userID")
 	user, err := h.userService.GetUserByID(r.Context(), userID)
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleAPIError(w, r, h.logger, err)
 		return
 	}
 
@@ -283,18 +283,18 @@ func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("userID")
 	var req services.UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		utils.HandleAPIError(w, r, h.logger, utils.ErrBadRequest)
 		return
 	}
 
 	if err := h.validate.Struct(req); err != nil {
-		utils.HandleError(w, r, h.logger, &utils.AppError{Code: "VALIDATION_ERROR", Message: err.Error(), HTTPStatus: http.StatusBadRequest})
+		utils.HandleAPIError(w, r, h.logger, &utils.AppError{Code: "VALIDATION_ERROR", Message: err.Error(), HTTPStatus: http.StatusBadRequest})
 		return
 	}
 
 	updatedUser, err := h.userService.UpdateUser(r.Context(), userID, req)
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleAPIError(w, r, h.logger, err)
 		return
 	}
 
@@ -311,7 +311,7 @@ func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("userID")
 	if err := h.userService.DeleteUser(r.Context(), userID); err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleAPIError(w, r, h.logger, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -319,7 +319,7 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) ListAuditEvents(w http.ResponseWriter, r *http.Request) {
 	events, err := h.auditService.ListRecentEvents(r.Context(), 10) // Get last 10 events
 	if err != nil {
-		utils.HandleError(w, r, h.logger, err)
+		utils.HandleAPIError(w, r, h.logger, err)
 		return
 	}
 	type auditEventResponse struct {

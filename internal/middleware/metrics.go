@@ -44,7 +44,7 @@ func (m *MetricsMiddleware) Wrap(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		// Use the shared responseWriter from util.go
-		rw := newResponseWriter(w)
+		rw := NewResponseWriter(w)
 
 		// Serve the request
 		next.ServeHTTP(rw, r)
@@ -54,6 +54,6 @@ func (m *MetricsMiddleware) Wrap(next http.Handler) http.Handler {
 
 		// Record the metrics
 		m.requestDuration.WithLabelValues(r.Method, path).Observe(duration)
-		m.requestsTotal.WithLabelValues(r.Method, path, strconv.Itoa(rw.statusCode)).Inc()
+		m.requestsTotal.WithLabelValues(r.Method, path, strconv.Itoa(rw.StatusCode())).Inc()
 	})
 }
