@@ -14,14 +14,16 @@ import (
 type AdminHandler struct {
 	logger        *slog.Logger
 	clientService *services.ClientService
+	userService   *services.UserService
 	validate      *validator.Validate
 }
 
 // NewAdminHandler creates a new AdminHandler.
-func NewAdminHandler(logger *slog.Logger, clientService *services.ClientService) *AdminHandler {
+func NewAdminHandler(logger *slog.Logger, clientService *services.ClientService, userService *services.UserService) *AdminHandler {
 	return &AdminHandler{
 		logger:        logger,
 		clientService: clientService,
+		userService:   userService,
 		validate:      validator.New(),
 	}
 }
@@ -168,5 +170,63 @@ func (h *AdminHandler) UpdateClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// ListUsers handles the request to list all users.
+func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.userService.ListUsers(r.Context())
+	if err != nil {
+		utils.HandleError(w, r, h.logger, err)
+		return
+	}
+
+	// For security, never expose the password hash.
+	type userResponse struct {
+		ID       string `json:"id"`
+		Username string `json:"username"`
+		Role     string `json:"role"`
+	}
+
+	response := make([]userResponse, len(users))
+	for i, u := range users {
+		response[i] = userResponse{
+			ID:       u.ID.Hex(),
+			Username: u.Username,
+			Role:     u.Role,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// CreateUser handles the request to create a new user.
+func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	var req services.CreateUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.HandleError(w, r, h.logger, utils.ErrBadRequest)
+		return
+	}
+
+	if err := h.validate.Struct(req); err != nil {
+		utils.HandleError(w, r, h.logger, &utils.AppError{Code: "VALIDATION_ERROR", Message: err.Error(), HTTPStatus: http.StatusBadRequest})
+		return
+	}
+
+	user, err := h.userService.CreateUser(r.Context(), req)
+	if err != nil {
+		utils.HandleError(w, r, h.logger, err)
+		return
+	}
+
+	response := map[string]any{
+		"id":       user.ID.Hex(),
+		"username": user.Username,
+		"role":     user.Role,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
 }

@@ -3,12 +3,14 @@ package mongodb
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/aminshahid573/oauth2-provider/internal/models"
 	"github.com/aminshahid573/oauth2-provider/internal/utils"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // UserRepository implements the storage.UserStore interface for MongoDB.
@@ -61,4 +63,19 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 
 	_, err := r.collection.InsertOne(ctx, user)
 	return err
+}
+
+// List retrieves all users from the database.
+func (r *UserRepository) List(ctx context.Context) ([]models.User, error) {
+	cursor, err := r.collection.Find(ctx, bson.M{}, options.Find().SetSort(bson.D{{Key: "username", Value: 1}}))
+	if err != nil {
+		return nil, fmt.Errorf("failed to find users: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var users []models.User
+	if err := cursor.All(ctx, &users); err != nil {
+		return nil, fmt.Errorf("failed to decode users: %w", err)
+	}
+	return users, nil
 }

@@ -39,6 +39,7 @@ type App struct {
 	PKCEService    *services.PKCEService
 	SessionService *services.SessionService
 	ScopeService   *services.ScopeService
+	UserService    *services.UserService
 
 	IntrospectionHandler *handlers.IntrospectionHandler
 	RevocationHandler    *handlers.RevocationHandler
@@ -140,6 +141,7 @@ func run() error {
 	pkceService := services.NewPKCEService(pkceStore)
 	sessionService := services.NewSessionService(sessionStore)
 	scopeService := services.NewScopeService()
+	userService := services.NewUserService(dataStore.User)
 
 	logger.Info("core services initialized")
 
@@ -150,7 +152,7 @@ func run() error {
 	jwksHandler := handlers.NewJWKSHandler(logger, jwtManager)
 	discoveryHandler := handlers.NewDiscoveryHandler(logger, clientService)
 	userInfoHandler := handlers.NewUserInfoHandler(logger, jwtManager, dataStore.User)
-	adminHandler := handlers.NewAdminHandler(logger, clientService)
+	adminHandler := handlers.NewAdminHandler(logger, clientService, userService)
 	logger.Info("metadata handlers initialized")
 
 	// --- Template Cache ---
@@ -175,6 +177,7 @@ func run() error {
 		PKCEService:    pkceService,
 		SessionService: sessionService,
 		ScopeService:   scopeService,
+		UserService:    userService,
 
 		IntrospectionHandler: introspectionHandler,
 		RevocationHandler:    revocationHandler,
@@ -271,6 +274,7 @@ func (a *App) ToServerDependencies() server.AppDependencies {
 		ScopeService:   a.ScopeService,
 		TokenService:   a.TokenService,
 		UserStore:      a.DataStore.User,
+		UserService:    a.UserService,
 
 		IntrospectionHandler: a.IntrospectionHandler,
 		RevocationHandler:    a.RevocationHandler,

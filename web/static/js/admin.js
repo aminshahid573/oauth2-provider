@@ -1,10 +1,98 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Client page logic
     const clientsTableBody = document.getElementById('clientsTableBody');
     if (clientsTableBody) {
         loadClients();
         setupClientPageEventListeners();
     }
+
+    // User page logic
+    const usersTableBody = document.getElementById('usersTableBody');
+    if (usersTableBody) {
+        loadUsers();
+        setupUserPageEventListeners();
+    }
 });
+
+// --- USER MANAGEMENT FUNCTIONS ---
+
+function setupUserPageEventListeners() {
+    const addUserBtn = document.getElementById('addUserBtn');
+    const userModal = document.getElementById('userModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const cancelModalBtn = document.getElementById('cancelModalBtn');
+    const userForm = document.getElementById('userForm');
+
+    addUserBtn.addEventListener('click', () => userModal.classList.remove('hidden'));
+    closeModalBtn.addEventListener('click', () => userModal.classList.add('hidden'));
+    cancelModalBtn.addEventListener('click', () => userModal.classList.add('hidden'));
+    userForm.addEventListener('submit', handleUserFormSubmit);
+}
+
+async function handleUserFormSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const csrfToken = form.querySelector('input[name="_csrf"]').value;
+
+    const payload = {
+        username: formData.get('username'),
+        password: formData.get('password'),
+        role: formData.get('role'),
+    };
+
+    try {
+        const response = await fetch('/api/admin/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken
+            },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error_description || 'Failed to create user.');
+
+        document.getElementById('userModal').classList.add('hidden');
+        showNotification(`User "${result.username}" created successfully.`, 'success');
+        loadUsers();
+    } catch (error) {
+        console.error('Error creating user:', error);
+        showNotification(error.message, 'error');
+    }
+}
+
+async function loadUsers() {
+    const tableBody = document.getElementById('usersTableBody');
+    try {
+        const response = await fetch('/api/admin/users');
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const users = await response.json();
+        tableBody.innerHTML = '';
+        if (!users || users.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center">No users found.</td></tr>';
+            return;
+        }
+        users.forEach(user => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${escapeHTML(user.username)}</td>
+                <td>${escapeHTML(user.role)}</td>
+                <td><code>${escapeHTML(user.id)}</code></td>
+                <td class="action-buttons">
+                    <a href="#" class="edit-btn" data-user-id="${escapeHTML(user.id)}">Edit</a>
+                    <a href="#" class="delete-btn" data-user-id="${escapeHTML(user.id)}">Delete</a>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Failed to load users:', error);
+        tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Failed to load users.</td></tr>';
+    }
+}
+
+// --- CLIENT MANAGEMENT FUNCTIONS ---
 
 function setupClientPageEventListeners() {
     const addClientBtn = document.getElementById('addClientBtn');

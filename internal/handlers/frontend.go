@@ -193,3 +193,13 @@ func (h *FrontendHandler) AdminClientsPage(w http.ResponseWriter, r *http.Reques
 	}
 	h.templateCache.Render(w, r, "admin.html", "clients.html", data)
 }
+
+// AdminUsersPage serves the user management page.
+func (h *FrontendHandler) AdminUsersPage(w http.ResponseWriter, r *http.Request) {
+	user, _ := middleware.GetUserFromContext(r)
+	data := map[string]any{
+		"CurrentPage": "users",
+		"Username":    user.Username,
+	}
+	h.templateCache.Render(w, r, "admin.html", "users.html", data)
+}

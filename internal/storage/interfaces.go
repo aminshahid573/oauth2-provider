@@ -23,6 +23,7 @@ type UserStore interface {
 	GetByUsername(ctx context.Context, username string) (*models.User, error)
 	GetByID(ctx context.Context, id bson.ObjectID) (*models.User, error)
 	Create(ctx context.Context, user *models.User) error
+	List(ctx context.Context) ([]models.User, error)
 }
 
 // TokenStore defines the interface for token (auth code, refresh token) storage.

@@ -26,8 +26,10 @@ type AppDependencies struct {
 	ScopeService   *services.ScopeService
 	TokenService   *services.TokenService
 	UserStore      storage.UserStore
-	BaseURL        string
-	AppEnv         string
+	UserService    *services.UserService
+
+	BaseURL string
+	AppEnv  string
 
 	IntrospectionHandler *handlers.IntrospectionHandler
 	RevocationHandler    *handlers.RevocationHandler
@@ -94,6 +96,7 @@ func NewRouter(deps AppDependencies) http.Handler {
 	adminUI := http.NewServeMux()
 	adminUI.HandleFunc("GET /dashboard", frontendHandler.AdminDashboard)
 	adminUI.HandleFunc("GET /clients", frontendHandler.AdminClientsPage)
+	adminUI.HandleFunc("GET /users", frontendHandler.AdminUsersPage)
 
 	protectedAdminUI := authMiddleware.RequireAuth(authMiddleware.RequireAdmin(adminUI))
 	mux.Handle("/admin/", http.StripPrefix("/admin", protectedAdminUI))
@@ -105,6 +108,10 @@ func NewRouter(deps AppDependencies) http.Handler {
 	adminAPI.HandleFunc("GET /clients/{clientID}", deps.AdminHandler.GetClient)
 	adminAPI.HandleFunc("PUT /clients/{clientID}", deps.AdminHandler.UpdateClient)
 	adminAPI.HandleFunc("DELETE /clients/{clientID}", deps.AdminHandler.DeleteClient)
+
+	adminAPI.HandleFunc("GET /users", deps.AdminHandler.ListUsers)
+	adminAPI.HandleFunc("POST /users", deps.AdminHandler.CreateUser)
+
 	protectedAdminAPI := authMiddleware.RequireAuth(authMiddleware.RequireAdmin(adminAPI))
 	mux.Handle("/api/admin/", http.StripPrefix("/api/admin", protectedAdminAPI))
 
