@@ -118,6 +118,7 @@ func (h *FrontendHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Details:   "User logged in successfully via form.",
 	}
 	_ = h.auditService.Record(r.Context(), eventData)
+
 	if returnTo != "" && strings.HasPrefix(returnTo, "/") {
 		http.Redirect(w, r, returnTo, http.StatusSeeOther)
 		return
