@@ -46,6 +46,7 @@ type App struct {
 	DiscoveryHandler     *handlers.DiscoveryHandler
 	UserInfoHandler      *handlers.UserInfoHandler
 	AdminHandler         *handlers.AdminHandler
+	HealthHandler        *handlers.HealthHandler
 
 	RateLimiter *middleware.RateLimiter
 	Metrics     *middleware.MetricsMiddleware
@@ -120,6 +121,8 @@ func run() error {
 	logger.Info("data stores initialized")
 
 	// --- Initialize Services & Utilities ---
+	healthChecker := services.NewHealthChecker(mongoClient, redisClient)
+
 	jwtManager, err := utils.NewJWTManager(cfg.JWT)
 	if err != nil {
 		logger.Error("failed to initialize JWT Manager", "error", err)
@@ -137,9 +140,11 @@ func run() error {
 	pkceService := services.NewPKCEService(pkceStore)
 	sessionService := services.NewSessionService(sessionStore)
 	scopeService := services.NewScopeService()
+
 	logger.Info("core services initialized")
 
 	// --- Initialize Handlers ---
+	healthHandler := handlers.NewHealthHandler(healthChecker)
 	introspectionHandler := handlers.NewIntrospectionHandler(logger, clientService, jwtManager)
 	revocationHandler := handlers.NewRevocationHandler(logger, clientService, tokenService)
 	jwksHandler := handlers.NewJWKSHandler(logger, jwtManager)
@@ -177,6 +182,7 @@ func run() error {
 		DiscoveryHandler:     discoveryHandler,
 		UserInfoHandler:      userInfoHandler,
 		AdminHandler:         adminHandler,
+		HealthHandler:        healthHandler,
 
 		RateLimiter: rateLimiter,
 		Metrics:     metrics,
@@ -272,6 +278,7 @@ func (a *App) ToServerDependencies() server.AppDependencies {
 		DiscoveryHandler:     a.DiscoveryHandler,
 		UserInfoHandler:      a.UserInfoHandler,
 		AdminHandler:         a.AdminHandler,
+		HealthHandler:        a.HealthHandler,
 
 		AllowedOrigins: a.Config.Security.AllowedOrigins,
 		RateLimiter:    a.RateLimiter,

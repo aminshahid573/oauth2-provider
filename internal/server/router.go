@@ -35,6 +35,7 @@ type AppDependencies struct {
 	DiscoveryHandler     *handlers.DiscoveryHandler
 	UserInfoHandler      *handlers.UserInfoHandler
 	AdminHandler         *handlers.AdminHandler
+	HealthHandler        *handlers.HealthHandler
 
 	AllowedOrigins []string
 	RateLimiter    *middleware.RateLimiter
@@ -156,6 +157,7 @@ func NewRouter(deps AppDependencies) http.Handler {
 
 	topLevelMux := http.NewServeMux()
 	topLevelMux.Handle("GET /metrics", promhttp.Handler())
+	topLevelMux.Handle("GET /healthz", deps.HealthHandler)
 	topLevelMux.Handle("/", handler)
 
 	return topLevelMux
