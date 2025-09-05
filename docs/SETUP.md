@@ -17,7 +17,7 @@ Ensure you have the following tools installed on your system:
 
 1.  **Clone the Repository:**
     ```bash
-    git clone <your-repository-url>
+    git clone https://github.com/aminshahid573/oauth2-provider
     cd oauth2-provider
     ```
 
@@ -112,3 +112,5 @@ go run ./cmd/server
 The application will be running and accessible at `http://localhost:8080`.
 
 ---
+| [![Previous](https://img.shields.io/badge/←_Previous-1f6feb?style=for-the-badge&logo=none&logoColor=white&labelColor=1f6feb&color=1f6feb)](README.md) <br> <sub>README.md</sub> | [![Next](https://img.shields.io/badge/Next_→-1f6feb?style=for-the-badge&logo=none&logoColor=white&labelColor=1f6feb&color=1f6feb)](ARCHITECTURE.md) <br> <sub>ARCHITECTURE.md</sub> |
+|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|

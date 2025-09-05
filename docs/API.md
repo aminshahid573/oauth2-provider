@@ -364,3 +364,7 @@ Creates a new client application.
 }
 ```
 *(Note: Other admin endpoints for clients and users follow a similar CRUD pattern.)*
+
+---
+| [![Previous](https://img.shields.io/badge/←_Previous-1f6feb?style=for-the-badge&logo=none&logoColor=white&labelColor=1f6feb&color=1f6feb)](ARCHITECTURE.md) <br> <sub>ARCHITECTURE.md</sub> | [![Next](https://img.shields.io/badge/Next_→-1f6feb?style=for-the-badge&logo=none&logoColor=white&labelColor=1f6feb&color=1f6feb)](FLOWS.md) <br> <sub>FLOWS.md</sub> |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|

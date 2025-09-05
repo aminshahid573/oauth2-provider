@@ -138,3 +138,8 @@ curl -X POST http://localhost:8080/oauth2/token \
 
 -   **While Pending:** The server responds with a `400 Bad Request` and `{"error":"authorization_pending"}`.
 -   **After Approval:** The server responds with a `200 OK` and the final tokens.
+-  
+
+---
+| [![Previous](https://img.shields.io/badge/←_Previous-1f6feb?style=for-the-badge&logo=none&logoColor=white&labelColor=1f6feb&color=1f6feb)](API.md) <br> <sub>API.md</sub> | [![Next](https://img.shields.io/badge/Next_→-1f6feb?style=for-the-badge&logo=none&logoColor=white&labelColor=1f6feb&color=1f6feb)](DEPLOYMENT.md) <br> <sub>DEPLOYMENT.md</sub> |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|

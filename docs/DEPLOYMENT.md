@@ -75,3 +75,9 @@ For a new deployment, you will need to seed the database with initial clients an
 To stop all running containers:
 ```bash
 docker-compose -f docker/docker-compose.yml down
+```
+
+---
+| [![Previous](https://img.shields.io/badge/←_Previous-1f6feb?style=for-the-badge&logo=none&logoColor=white&labelColor=1f6feb&color=1f6feb)](FLOWS.md) <br> <sub>FLOWS.md</sub> |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+

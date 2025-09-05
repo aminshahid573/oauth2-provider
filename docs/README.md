@@ -11,3 +11,7 @@ Please refer to the following guides for detailed information:
 -   **[DEPLOYMENT.md](./DEPLOYMENT.md)**: Instructions for building and running the application in a production-like environment using Docker.
 
 For a high-level overview and quick start, please see the main [README.md](../README.md) in the project root.
+
+---
+| [![Next](https://img.shields.io/badge/Next_→-1f6feb?style=for-the-badge&logo=none&logoColor=white&labelColor=1f6feb&color=1f6feb)](SETUP.md) <br> <sub>SETUP.md</sub> |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------|

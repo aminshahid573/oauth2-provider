@@ -1,4 +1,3 @@
-// File: migrations/mongodb/indexes.js
 // This script creates necessary indexes for the collections in the oauth2_provider database.
 // Run this script using mongosh:
 // mongosh "mongodb://root:password@localhost:27017" --file migrations/mongodb/indexes.js
