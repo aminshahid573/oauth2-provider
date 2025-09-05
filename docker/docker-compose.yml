@@ -1,18 +1,42 @@
 services:
+  app:
+    # This tells Docker Compose to build an image from the parent directory (project root)
+    # where the Dockerfile is located.
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: oauth2-provider-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    # This ensures the app starts only after the database and cache are ready.
+    depends_on:
+      - mongodb
+      - redis
+    # This correctly loads the .env file from the project's root directory.
+    env_file:
+      - ../.env
+    networks:
+      - oauth2-net
+
+  # MongoDB Database
   mongodb:
     image: mongo
     container_name: oauth2-mongo
     restart: unless-stopped
     ports:
       - "27017:27017"
+    # It's best practice to source these from the .env file for consistency.
+    # Ensure MONGO_ROOT_USER and MONGO_ROOT_PASSWORD are in your .env file.
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password}
     volumes:
       - mongo-data:/data/db
     networks:
       - oauth2-net
 
+  # Mongo Express (Database Admin UI)
   mongo-express:
     image: mongo-express
     container_name: mongo-express
@@ -20,15 +44,16 @@ services:
     ports:
       - "8081:8081"
     environment:
-      ME_CONFIG_MONGODB_SERVER: oauth2-mongo
-      ME_CONFIG_MONGODB_ADMINUSERNAME: root
-      ME_CONFIG_MONGODB_ADMINPASSWORD: password
+      ME_CONFIG_MONGODB_SERVER: mongodb # Connects to the mongodb service by its name
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USER:-root}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD:-password}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USER:-root}:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017/
     depends_on:
       - mongodb
     networks:
       - oauth2-net
 
-
+  # Redis Cache & Session Store
   redis:
     image: redis
     container_name: oauth2-redis
