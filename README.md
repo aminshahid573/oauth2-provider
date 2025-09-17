@@ -36,6 +36,42 @@ It includes a full suite of OAuth2 flows, a user-facing frontend for login and c
 -   ✅ **Admin Dashboard & API**
 -   ✅ **Metrics & Health Checks**
 
+```mermaid
+sequenceDiagram
+    actor 👤 User
+    participant 📱 Client App
+    participant 🌐 Browser
+    participant 🔐 OAuth Server
+    participant 💾 Database
+
+    %% Phase 1: Initiate Login
+    👤 User->>📱 Client App: Click "Login"
+    📱 Client App->>🌐 Browser: Redirect to /authorize + PKCE challenge
+    
+    %% Phase 2: User Authentication
+    🌐 Browser->>🔐 OAuth Server: GET /authorize
+    🔐 OAuth Server->>🌐 Browser: Show login page
+    👤 User->>🌐 Browser: Enter credentials
+    🌐 Browser->>🔐 OAuth Server: POST /login
+    🔐 OAuth Server->>💾 Database: Validate user
+    💾 Database-->>🔐 OAuth Server: User valid
+    🔐 OAuth Server->>🌐 Browser: Set session + show consent
+    
+    %% Phase 3: User Consent
+    👤 User->>🌐 Browser: Click "Allow"
+    🌐 Browser->>🔐 OAuth Server: POST /authorize (consent)
+    🔐 OAuth Server->>💾 Database: Store auth code + PKCE
+    🔐 OAuth Server->>🌐 Browser: Redirect with auth code
+    
+    %% Phase 4: Token Exchange
+    🌐 Browser->>📱 Client App: Deliver auth code
+    📱 Client App->>🔐 OAuth Server: POST /token (code + PKCE verifier)
+    🔐 OAuth Server->>💾 Database: Validate code + PKCE
+    💾 Database-->>🔐 OAuth Server: Valid
+    🔐 OAuth Server->>💾 Database: Store refresh token
+    🔐 OAuth Server-->>📱 Client App: Return access + refresh tokens
+    📱 Client App-->>👤 User: Login successful
+```
 For a deep dive into the project's design, please see the **[Architecture Documentation](./docs/ARCHITECTURE.md)**.
 
 ## Quick Start (Docker Compose)
