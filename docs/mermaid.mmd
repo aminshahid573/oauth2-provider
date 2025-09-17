@@ -13,71 +13,79 @@ sequenceDiagram
     User->>+ClientApp: Clicks "Log in"
     ClientApp->>ClientApp: 1. Generate code_verifier
     ClientApp->>ClientApp: 2. Generate code_challenge = HASH(code_verifier)
-    ClientApp->>+User: 3. Redirect to /oauth2/authorize with challenge
+    ClientApp->>-User: 3. Redirect to /oauth2/authorize with challenge
 
     %% --- Step 2: User Authentication ---
     User->>+Browser: Navigates to /oauth2/authorize
     Browser->>+Middleware: Request hits Auth Middleware
     Middleware->>Middleware: User is not logged in
     Middleware->>-Browser: Redirect to /login?return_to=...
+    
     Browser->>+Handlers: GET /login
     Handlers->>-Browser: Render login.html
+    
     User->>Browser: Submits username & password
     Browser->>+Handlers: POST /login
     Handlers->>+Services: authService.AuthenticateUser()
     Services->>+Storage: userStore.GetByUsername()
     Storage-->>-Services: Return user with hashed password
-    Services-->>-Handlers: User is valid
+    Services-->>Handlers: User is valid
+    
     Handlers->>+Services: sessionService.CreateSession()
     Services->>+Storage: sessionStore.Save() (Redis)
     Storage-->>-Services: Session created
-    Services-->>-Handlers: Return session ID
+    Services-->>Handlers: Return session ID
     Handlers->>-Browser: Set session cookie & Redirect back to /oauth2/authorize
 
     %% --- Step 3: User Consent ---
     Browser->>+Middleware: Request hits Auth Middleware again
     Middleware->>Middleware: User is now logged in (valid session)
-    Middleware->>Handlers: Forward request to AuthorizeFlow
+    Middleware->>+Handlers: Forward request to AuthorizeFlow
     Handlers->>+Services: clientService.GetClient()
     Services->>+Storage: clientStore.GetByClientID()
     Storage-->>-Services: Return client details
-    Services-->>-Handlers: Client is valid
+    Services-->>Handlers: Client is valid
     Handlers->>-Browser: Render consent.html with client name & scopes
-
+    
     User->>Browser: Clicks "Allow"
     Browser->>+Handlers: POST /oauth2/authorize (consent form)
     Handlers->>+Services: tokenService.GenerateAndStoreAuthorizationCode()
     Services->>+Storage: tokenStore.Save() (MongoDB)
     Storage-->>-Services: Code created
-    Services-->>-Handlers: Return authorization_code
+    Services-->>Handlers: Return authorization_code
+    
     Handlers->>+Services: tokenService.StorePKCEChallenge()
     Services->>+Storage: pkceStore.Save(code, challenge) (Redis)
     Storage-->>-Services: Challenge stored
-    Services-->>-Handlers: Success
+    Services-->>Handlers: Success
     Handlers->>-User: Redirect to client's redirect_uri with code
 
     %% --- Step 4: Token Exchange (Backend) ---
-    User-->>-ClientApp: Browser delivers authorization_code
+    User-->>ClientApp: Browser delivers authorization_code
+    
     ClientApp->>+Handlers: POST /oauth2/token (with code & code_verifier)
     Handlers->>+Services: clientService.ValidateClientCredentials()
     Services->>+Storage: clientStore.GetByClientID()
     Storage-->>-Services: Client is valid
-    Services-->>-Handlers: Success
+    Services-->>Handlers: Success
+    
     Handlers->>+Services: tokenService.ValidatePKCE(code, verifier)
     Services->>+Storage: pkceStore.Get(code)
     Storage-->>-Services: Return stored challenge
     Services->>Services: HASH(verifier) == challenge? (Yes)
-    Services-->>-Handlers: PKCE is valid
+    Services-->>Handlers: PKCE is valid
+    
     Handlers->>+Services: tokenService.ValidateAndConsumeAuthCode()
     Services->>+Storage: tokenStore.GetBySignature() & DeleteBySignature()
     Storage-->>-Services: Return original token data
-    Services-->>-Handlers: Auth code is valid
+    Services-->>Handlers: Auth code is valid
+    
     Handlers->>+Services: tokenService.GenerateAccessToken() & GenerateRefreshToken()
     Services->>Services: Create JWT, sign with private key
     Services->>+Storage: tokenStore.Save(refresh_token)
     Storage-->>-Services: Refresh token stored
-    Services-->>-Handlers: Return access_token & refresh_token
+    Services-->>Handlers: Return access_token & refresh_token
     Handlers-->>-ClientApp: Respond with JSON containing tokens
 
     ClientApp->>ClientApp: Securely stores tokens
-    ClientApp-->>-User: Logs user in to the app
+    ClientApp-->>User: Logs user in to the app
