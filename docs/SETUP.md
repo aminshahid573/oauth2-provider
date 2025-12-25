@@ -24,7 +24,7 @@ Ensure you have the following tools installed on your system:
 2.  **Install Go Dependencies:**
     This command will download all the necessary libraries defined in `go.mod`.
     ```bash
-    go mod tidy
+    go mod download
     ```
 
 ## 3. Configuration (`.env` file)
