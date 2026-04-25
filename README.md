@@ -123,6 +123,7 @@ This project includes comprehensive documentation for developers, administrators
 -   **[API.md](./docs/API.md)**: A complete technical reference for every API endpoint.
 -   **[FLOWS.md](./docs/FLOWS.md)**: Practical walkthroughs of each supported OAuth2 flow.
 -   **[DEPLOYMENT.md](./docs/DEPLOYMENT.md)**: Instructions for deploying the application using Docker.
+-   **[REFERENCES.md](./REFERENCES.md)**: A complete list of all IETF RFCs and official specifications this project is implemented against.
 
 ## Technology Stack
 
