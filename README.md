@@ -33,19 +33,22 @@ around a library — this is a full OAuth2 Authorization Server you can
 understand, audit, and extend yourself.
 
 **Built for:**
-- 🏢 Startups who want auth infrastructure without the Auth0 bill
-- 🔒 Teams with compliance requirements (HIPAA, GDPR) who can't 
+- Startups who want auth infrastructure without the Auth0 bill
+- Teams with compliance requirements (HIPAA, GDPR) who can't 
      send user data to third parties  
-- 📚 Developers who want to understand OAuth2 by reading 
+- Developers who want to understand OAuth2 by reading 
      real working code
-- 🛠 Engineers who need a lightweight alternative to Keycloak
+- Engineers who need a lightweight alternative to Keycloak
 
 
-## Project Overview
+## What Is This?
 
-This project is a complete, standards-compliant OAuth2 and OpenID Connect provider written in Go. It is designed to be a secure, performant, and scalable central authentication authority for your entire application ecosystem.
+This is a complete OAuth2 and OpenID Connect Authorization Server — 
+the same kind of system that powers "Login with Google" — except you 
+run it yourself, on your own infrastructure.
 
-It includes a full suite of OAuth2 flows, a user-facing frontend for login and consent, and a complete admin panel for managing clients and users.
+It handles login, consent, token issuance, and session management for 
+all your applications from a single, central auth server.
 
 ### Supported Features
 
