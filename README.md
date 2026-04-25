@@ -18,6 +18,29 @@
 </p>
 
 ---
+## Why This Project?
+
+Authentication is the front door of every application. Most developers 
+outsource it to Auth0, Okta, or Firebase — and pay thousands of dollars 
+a month as they scale, while handing over their most sensitive user data 
+to a third party.
+
+This project gives you a **self-hosted alternative**. You own the server, 
+you own the data, you own the keys.
+
+Built from scratch against official IETF specifications — not wrapped 
+around a library — this is a full OAuth2 Authorization Server you can 
+understand, audit, and extend yourself.
+
+**Built for:**
+- 🏢 Startups who want auth infrastructure without the Auth0 bill
+- 🔒 Teams with compliance requirements (HIPAA, GDPR) who can't 
+     send user data to third parties  
+- 📚 Developers who want to understand OAuth2 by reading 
+     real working code
+- 🛠 Engineers who need a lightweight alternative to Keycloak
+
+
 ## Project Overview
 
 This project is a complete, standards-compliant OAuth2 and OpenID Connect provider written in Go. It is designed to be a secure, performant, and scalable central authentication authority for your entire application ecosystem.
