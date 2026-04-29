@@ -152,7 +152,7 @@ func run() error {
 
 	// --- Initialize Handlers ---
 	healthHandler := handlers.NewHealthHandler(healthChecker)
-	introspectionHandler := handlers.NewIntrospectionHandler(logger, clientService, jwtManager)
+	introspectionHandler := handlers.NewIntrospectionHandler(logger, clientService, tokenService, jwtManager)
 	revocationHandler := handlers.NewRevocationHandler(logger, clientService, tokenService)
 	jwksHandler := handlers.NewJWKSHandler(logger, jwtManager)
 	discoveryHandler := handlers.NewDiscoveryHandler(logger, clientService)
