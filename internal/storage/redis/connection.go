@@ -3,7 +3,7 @@ package redis
 import (
 	"context"
 
-	"github.com/aminshahid573/oauth2-provider/internal/config"
+	"github.com/aminshahid573/authexa/internal/config"
 	"github.com/redis/go-redis/v9"
 )
 

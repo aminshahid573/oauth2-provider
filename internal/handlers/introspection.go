@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aminshahid573/oauth2-provider/internal/models"
-	"github.com/aminshahid573/oauth2-provider/internal/services"
-	"github.com/aminshahid573/oauth2-provider/internal/utils"
+	"github.com/aminshahid573/authexa/internal/models"
+	"github.com/aminshahid573/authexa/internal/services"
+	"github.com/aminshahid573/authexa/internal/utils"
 )
 
 // IntrospectionHandler handles token introspection requests.

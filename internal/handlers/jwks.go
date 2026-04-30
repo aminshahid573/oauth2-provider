@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/aminshahid573/oauth2-provider/internal/utils"
+	"github.com/aminshahid573/authexa/internal/utils"
 )
 
 // JWKSHandler serves the JSON Web Key Set.

@@ -1,6 +1,6 @@
-# Contributing to OAuth2 Provider
+# Contributing to Authexa
 
-First off, thank you for considering contributing to OAuth2 Provider! It's people like you that make open source such a great community.
+First off, thank you for considering contributing to Authexa! It's people like you that make open source such a great community.
 
 ## Where do I go from here?
 
@@ -8,7 +8,7 @@ If you've noticed a bug or have a feature request, make sure to check our [Issue
 
 ## Fork & create a branch
 
-If this is something you think you can fix, then [fork OAuth2 Provider](https://help.github.com/articles/fork-a-repo) and create a branch with a descriptive name.
+If this is something you think you can fix, then [fork Authexa](https://help.github.com/articles/fork-a-repo) and create a branch with a descriptive name.
 
 A good branch name would be (where issue #325 is the ticket you're working on):
 
@@ -28,8 +28,8 @@ git checkout -b 325-add-pkce-support
 
 1. Clone your fork and navigate into it:
    ```sh
-   git clone https://github.com/YOUR_USERNAME/oauth2-provider.git
-   cd oauth2-provider
+   git clone https://github.com/YOUR_USERNAME/authexa.git
+   cd authexa
    ```
 2. Copy the example environment file:
    ```sh

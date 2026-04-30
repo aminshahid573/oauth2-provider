@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/aminshahid573/oauth2-provider/internal/config"
-	"github.com/aminshahid573/oauth2-provider/internal/testutil"
+	"github.com/aminshahid573/authexa/internal/config"
+	"github.com/aminshahid573/authexa/internal/testutil"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"

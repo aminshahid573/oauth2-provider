@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aminshahid573/oauth2-provider/internal/models"
-	"github.com/aminshahid573/oauth2-provider/internal/storage"
-	"github.com/aminshahid573/oauth2-provider/internal/utils"
+	"github.com/aminshahid573/authexa/internal/models"
+	"github.com/aminshahid573/authexa/internal/storage"
+	"github.com/aminshahid573/authexa/internal/utils"
 )
 
 // TODO:: load from config , already defined in config

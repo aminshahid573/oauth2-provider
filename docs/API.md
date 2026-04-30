@@ -1,6 +1,6 @@
 # API Reference Guide
 
-This document provides a complete technical reference for all machine-to-machine (M2M) and administrative API endpoints of the OAuth2 Provider. It is intended for developers building client applications or managing the service.
+This document provides a complete technical reference for all machine-to-machine (M2M) and administrative API endpoints of the Authexa. It is intended for developers building client applications or managing the service.
 
 ## Common Conventions
 

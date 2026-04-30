@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 
-	"github.com/aminshahid573/oauth2-provider/internal/storage"
+	"github.com/aminshahid573/authexa/internal/storage"
 )
 
 // DashboardStats holds the aggregated statistics for the admin dashboard.

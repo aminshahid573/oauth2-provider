@@ -5,12 +5,12 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/aminshahid573/oauth2-provider/internal/handlers"
-	"github.com/aminshahid573/oauth2-provider/internal/middleware"
-	"github.com/aminshahid573/oauth2-provider/internal/services"
-	"github.com/aminshahid573/oauth2-provider/internal/storage"
-	"github.com/aminshahid573/oauth2-provider/internal/utils"
-	"github.com/aminshahid573/oauth2-provider/web"
+	"github.com/aminshahid573/authexa/internal/handlers"
+	"github.com/aminshahid573/authexa/internal/middleware"
+	"github.com/aminshahid573/authexa/internal/services"
+	"github.com/aminshahid573/authexa/internal/storage"
+	"github.com/aminshahid573/authexa/internal/utils"
+	"github.com/aminshahid573/authexa/web"
 	"github.com/gorilla/csrf"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )

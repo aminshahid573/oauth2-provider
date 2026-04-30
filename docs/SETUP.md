@@ -1,6 +1,6 @@
 # Project Setup & Configuration Guide
 
-This document provides a detailed, step-by-step guide to setting up the OAuth2 Provider for local development.
+This document provides a detailed, step-by-step guide to setting up the Authexa for local development.
 
 ## 1. Prerequisites
 
@@ -17,8 +17,8 @@ Ensure you have the following tools installed on your system:
 
 1.  **Clone the Repository:**
     ```bash
-    git clone https://github.com/aminshahid573/oauth2-provider
-    cd oauth2-provider
+    git clone https://github.com/aminshahid573/authexa
+    cd authexa
     ```
 
 2.  **Install Go Dependencies:**

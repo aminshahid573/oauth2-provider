@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/aminshahid573/oauth2-provider/internal/models"
-	"github.com/aminshahid573/oauth2-provider/internal/services"
-	"github.com/aminshahid573/oauth2-provider/internal/storage"
+	"github.com/aminshahid573/authexa/internal/models"
+	"github.com/aminshahid573/authexa/internal/services"
+	"github.com/aminshahid573/authexa/internal/storage"
 )
 
 // CtxUserKey is the key for storing the user object in the request context.

@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aminshahid573/oauth2-provider/internal/middleware"
-	"github.com/aminshahid573/oauth2-provider/internal/models"
-	"github.com/aminshahid573/oauth2-provider/internal/services"
-	"github.com/aminshahid573/oauth2-provider/internal/utils"
+	"github.com/aminshahid573/authexa/internal/middleware"
+	"github.com/aminshahid573/authexa/internal/models"
+	"github.com/aminshahid573/authexa/internal/services"
+	"github.com/aminshahid573/authexa/internal/utils"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 )

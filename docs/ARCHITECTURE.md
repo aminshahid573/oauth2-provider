@@ -1,6 +1,6 @@
 # Project Architecture
 
-This document provides an overview of the architectural decisions and patterns used in the OAuth2 Provider project. The primary goal is to create a system that is maintainable, testable, and easy to reason about.
+This document provides an overview of the architectural decisions and patterns used in the Authexa project. The primary goal is to create a system that is maintainable, testable, and easy to reason about.
 
 ## Core Philosophy: Clean Architecture
 
@@ -13,7 +13,7 @@ The project follows the principles of **Clean Architecture**, which emphasizes a
 ## Project Structure Overview
 
 ```
-oauth2-provider/
+authexa/
 ├── cmd/                # Main application entry points
 ├── internal/           # All private application code
 │   ├── config/         # Configuration loading and validation

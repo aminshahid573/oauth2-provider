@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/aminshahid573/oauth2-provider/internal/services"
+	"github.com/aminshahid573/authexa/internal/services"
 )
 
 // HealthHandler serves the health check endpoint.
