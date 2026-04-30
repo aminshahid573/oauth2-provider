@@ -21,6 +21,13 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 }
 
+// IDTokenClaims defines the structure for OpenID Connect ID Tokens.
+type IDTokenClaims struct {
+	jwt.RegisteredClaims
+	Nonce    string `json:"nonce,omitempty"`
+	AuthTime int64  `json:"auth_time,omitempty"`
+}
+
 // JWTManager handles the creation and validation of JWTs.
 type JWTManager struct {
 	privateKey           *rsa.PrivateKey
@@ -99,6 +106,36 @@ func (m *JWTManager) GenerateAccessToken(userID, clientID string, scopes []strin
 	signedToken, err := token.SignedString(m.privateKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to sign access token: %w", err)
+	}
+	return signedToken, nil
+}
+
+// GenerateIDToken creates a new OIDC ID token signed with the private key.
+func (m *JWTManager) GenerateIDToken(userID, clientID string, nonce string, authTime time.Time) (string, error) {
+	now := time.Now()
+	claims := IDTokenClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    m.issuer,
+			Subject:   userID,
+			Audience:  jwt.ClaimStrings{clientID},
+			ExpiresAt: jwt.NewNumericDate(now.Add(m.accessTokenLifespan)),
+			IssuedAt:  jwt.NewNumericDate(now),
+		},
+	}
+
+	if nonce != "" {
+		claims.Nonce = nonce
+	}
+	if !authTime.IsZero() {
+		claims.AuthTime = authTime.Unix()
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token.Header["kid"] = m.keyID
+
+	signedToken, err := token.SignedString(m.privateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign ID token: %w", err)
 	}
 	return signedToken, nil
 }

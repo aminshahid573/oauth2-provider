@@ -461,6 +461,15 @@ func (h *AuthHandler) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 		"refresh_token": refreshToken,
 	}
 
+	if slices.Contains(authCodeToken.Scopes, "openid") {
+		idToken, err := h.tokenService.GenerateIDToken(authCodeToken.UserID, client.ClientID, "", time.Time{})
+		if err == nil {
+			tokenResponse["id_token"] = idToken
+		} else {
+			h.logger.Error("failed to generate id token", "error", err)
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
@@ -555,6 +564,15 @@ func (h *AuthHandler) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Req
 		"scope":        strings.Join(refreshToken.Scopes, " "),
 	}
 
+	if slices.Contains(refreshToken.Scopes, "openid") {
+		idToken, err := h.tokenService.GenerateIDToken(refreshToken.UserID, client.ClientID, "", time.Time{})
+		if err == nil {
+			tokenResponse["id_token"] = idToken
+		} else {
+			h.logger.Error("failed to generate id token", "error", err)
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
@@ -604,6 +622,15 @@ func (h *AuthHandler) handleDeviceCodeGrant(w http.ResponseWriter, r *http.Reque
 		"expires_in":    int(h.tokenService.GetAccessTokenLifespan().Seconds()),
 		"scope":         strings.Join(token.Scopes, " "),
 		"refresh_token": refreshToken,
+	}
+
+	if slices.Contains(token.Scopes, "openid") {
+		idToken, err := h.tokenService.GenerateIDToken(token.UserID, token.ClientID, "", time.Time{})
+		if err == nil {
+			tokenResponse["id_token"] = idToken
+		} else {
+			h.logger.Error("failed to generate id token", "error", err)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

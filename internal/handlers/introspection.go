@@ -5,7 +5,9 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/aminshahid573/oauth2-provider/internal/models"
 	"github.com/aminshahid573/oauth2-provider/internal/services"
 	"github.com/aminshahid573/oauth2-provider/internal/utils"
 )
@@ -14,14 +16,16 @@ import (
 type IntrospectionHandler struct {
 	logger        *slog.Logger
 	clientService *services.ClientService
+	tokenService  *services.TokenService
 	jwtManager    *utils.JWTManager
 }
 
 // NewIntrospectionHandler creates a new IntrospectionHandler.
-func NewIntrospectionHandler(logger *slog.Logger, clientService *services.ClientService, jwtManager *utils.JWTManager) *IntrospectionHandler {
+func NewIntrospectionHandler(logger *slog.Logger, clientService *services.ClientService, tokenService *services.TokenService, jwtManager *utils.JWTManager) *IntrospectionHandler {
 	return &IntrospectionHandler{
 		logger:        logger,
 		clientService: clientService,
+		tokenService:  tokenService,
 		jwtManager:    jwtManager,
 	}
 }
@@ -54,32 +58,52 @@ func (h *IntrospectionHandler) Introspect(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Verify the JWT.
+	// First, try verifying it as a JWT Access Token.
 	claims, err := h.jwtManager.VerifyToken(tokenToInspect)
-	if err != nil {
-		// If the token is invalid for any reason (bad signature, expired), it's inactive.
-		h.writeInactiveResponse(w)
+	if err == nil {
+		// Valid JWT Access Token
+		response := map[string]any{
+			"active":     true,
+			"scope":      strings.Join(claims.Scope, " "),
+			"client_id":  claims.ClientID,
+			"sub":        claims.Subject,
+			"exp":        claims.ExpiresAt.Unix(),
+			"iat":        claims.IssuedAt.Unix(),
+			"nbf":        claims.NotBefore.Unix(),
+			"iss":        claims.Issuer,
+			"aud":        claims.Audience,
+			"jti":        claims.ID,
+			"token_type": "Bearer",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
-	// If we reach here, the token is valid. Respond with its claims.
-	response := map[string]any{
-		"active":     true,
-		"scope":      strings.Join(claims.Scope, " "),
-		"client_id":  claims.ClientID,
-		"sub":        claims.Subject, // Subject (user_id or client_id)
-		"exp":        claims.ExpiresAt.Unix(),
-		"iat":        claims.IssuedAt.Unix(),
-		"nbf":        claims.NotBefore.Unix(),
-		"iss":        claims.Issuer,
-		"aud":        claims.Audience,
-		"jti":        claims.ID,
-		"token_type": "Bearer",
+	// If not a valid JWT, check if it's a Refresh Token in the database.
+	signature := h.tokenService.HashToken(tokenToInspect)
+	token, err := h.tokenService.GetTokenBySignature(r.Context(), signature)
+	if err == nil && token.Type == models.TokenTypeRefreshToken {
+		// Check if it's expired
+		if time.Now().Before(token.ExpiresAt) {
+			response := map[string]any{
+				"active":     true,
+				"client_id":  token.ClientID,
+				"scope":      strings.Join(token.Scopes, " "),
+				"sub":        token.UserID,
+				"exp":        token.ExpiresAt.Unix(),
+				"token_type": "Refresh Token",
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	// If we reach here, it's neither a valid access token nor a valid refresh token.
+	h.writeInactiveResponse(w)
 }
 
 // writeInactiveResponse is a helper to return the standard response for an invalid token.

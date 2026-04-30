@@ -58,6 +58,11 @@ func (s *TokenService) GenerateAccessToken(userID, clientID string, scopes []str
 	return s.jwtManager.GenerateAccessToken(userID, clientID, scopes)
 }
 
+// GenerateIDToken creates a new OIDC ID token.
+func (s *TokenService) GenerateIDToken(userID, clientID string, nonce string, authTime time.Time) (string, error) {
+	return s.jwtManager.GenerateIDToken(userID, clientID, nonce, authTime)
+}
+
 // GenerateAndStoreAuthorizationCode creates a new authorization code and stores its hash.
 func (s *TokenService) GenerateAndStoreAuthorizationCode(ctx context.Context, userID, clientID string, scopes []string) (string, error) {
 	code, err := utils.GenerateSecureToken(32)
