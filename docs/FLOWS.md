@@ -58,6 +58,7 @@ curl -X POST http://localhost:8080/oauth2/token \
 {
   "access_token": "...",
   "refresh_token": "...",
+  "id_token": "...",
   "token_type": "Bearer",
   "expires_in": 3600
 }
