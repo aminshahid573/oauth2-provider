@@ -4,7 +4,7 @@
 
 
 
-<h1 align="center">🔐 OAuth2 Provider in Go</h1>
+<h1 align="center">🔐 Authexa in Go</h1>
 
 <p align="center">
   <b>A blazing fast, production-ready OAuth2 Authorization Server built with 💙 Go, 🛢 MongoDB, and ⚡ Redis.</b>
@@ -131,7 +131,7 @@ docker-compose -f docker/docker-compose.yml up --build -d
     ```bash
     docker-compose -f docker/docker-compose.yml ps
     ```
--   **OAuth2 Provider is running at:** `http://localhost:8080`
+-   **Authexa is running at:** `http://localhost:8080`
 -   **Mongo Express (DB Admin) is at:** `http://localhost:8081`
 
 ### 4. Seed Initial Data

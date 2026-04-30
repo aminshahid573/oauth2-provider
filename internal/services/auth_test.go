@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/aminshahid573/oauth2-provider/internal/models"
-	"github.com/aminshahid573/oauth2-provider/internal/utils"
+	"github.com/aminshahid573/authexa/internal/models"
+	"github.com/aminshahid573/authexa/internal/utils"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -40,6 +40,22 @@ func (m *MockUserStore) Create(ctx context.Context, user *models.User) error {
 		return m.CreateFunc(ctx, user)
 	}
 	return errors.New("CreateFunc not implemented")
+}
+
+func (m *MockUserStore) List(ctx context.Context) ([]models.User, error) {
+	return nil, nil
+}
+
+func (m *MockUserStore) Update(ctx context.Context, user *models.User) error {
+	return nil
+}
+
+func (m *MockUserStore) Delete(ctx context.Context, id bson.ObjectID) error {
+	return nil
+}
+
+func (m *MockUserStore) Count(ctx context.Context) (int64, error) {
+	return 0, nil
 }
 
 // TestAuthService_Unit tests the AuthService in isolation using a mock store.

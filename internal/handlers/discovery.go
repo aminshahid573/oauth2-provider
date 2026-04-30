@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/aminshahid573/oauth2-provider/internal/models"
-	"github.com/aminshahid573/oauth2-provider/internal/services"
+	"github.com/aminshahid573/authexa/internal/models"
+	"github.com/aminshahid573/authexa/internal/services"
 )
 
 // DiscoveryHandler serves the OAuth2 discovery document.

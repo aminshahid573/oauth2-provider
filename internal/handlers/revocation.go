@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/aminshahid573/oauth2-provider/internal/services"
+	"github.com/aminshahid573/authexa/internal/services"
 )
 
 // RevocationHandler handles token revocation requests.

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/aminshahid573/oauth2-provider/internal/config"
+	"github.com/aminshahid573/authexa/internal/config"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref"

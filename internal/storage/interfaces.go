@@ -5,7 +5,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/aminshahid573/oauth2-provider/internal/models"
+	"github.com/aminshahid573/authexa/internal/models"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 

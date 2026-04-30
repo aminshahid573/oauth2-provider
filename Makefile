@@ -1,7 +1,7 @@
 # File: Makefile
 .PHONY: all build run test tidy docker-up docker-down help
 
-BINARY_NAME=oauth2-provider
+BINARY_NAME=authexa
 
 all: build
 

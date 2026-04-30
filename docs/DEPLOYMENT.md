@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide provides instructions for building and running the OAuth2 Provider using Docker and Docker Compose. This is the recommended method for both development and production environments.
+This guide provides instructions for building and running the Authexa using Docker and Docker Compose. This is the recommended method for both development and production environments.
 
 ## Prerequisites
 

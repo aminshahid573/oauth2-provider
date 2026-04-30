@@ -1,6 +1,6 @@
 # Project Documentation
 
-Welcome to the complete documentation for the OAuth2 Provider in Go. This section provides in-depth information about the project's architecture, setup, API, and implementation details.
+Welcome to the complete documentation for the Authexa in Go. This section provides in-depth information about the project's architecture, setup, API, and implementation details.
 
 Please refer to the following guides for detailed information:
 

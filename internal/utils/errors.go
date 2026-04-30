@@ -56,7 +56,12 @@ func HandleError(w http.ResponseWriter, r *http.Request, logger *slog.Logger, tc
 	if appErr.Err != nil {
 		logAttr = append(logAttr, slog.String("underlying_error", appErr.Err.Error()))
 	}
-	logger.Error("HTTP handler error", logAttr)
+	
+	logArgs := make([]any, len(logAttr))
+	for i, v := range logAttr {
+		logArgs[i] = v
+	}
+	logger.Error("HTTP handler error", logArgs...)
 
 	// Check if the client prefers an HTML response.
 	if strings.Contains(r.Header.Get("Accept"), "text/html") {
@@ -83,7 +88,12 @@ func HandleAPIError(w http.ResponseWriter, r *http.Request, logger *slog.Logger,
 	if appErr.Err != nil {
 		logAttr = append(logAttr, slog.String("underlying_error", appErr.Err.Error()))
 	}
-	logger.Error("HTTP handler error", logAttr)
+	
+	logArgs := make([]any, len(logAttr))
+	for i, v := range logAttr {
+		logArgs[i] = v
+	}
+	logger.Error("HTTP handler error", logArgs...)
 	WriteJSONError(w, appErr)
 }
 

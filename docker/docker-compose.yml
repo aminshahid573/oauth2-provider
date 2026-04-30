@@ -5,7 +5,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    container_name: oauth2-provider-app
+    container_name: authexa-app
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -17,12 +17,12 @@ services:
     env_file:
       - ../.env
     networks:
-      - oauth2-net
+      - authexa-net
 
   # MongoDB Database
   mongodb:
     image: mongo
-    container_name: oauth2-mongo
+    container_name: authexa-mongo
     restart: unless-stopped
     ports:
       - "27017:27017"
@@ -34,7 +34,7 @@ services:
     volumes:
       - mongo-data:/data/db
     networks:
-      - oauth2-net
+      - authexa-net
 
   # Mongo Express (Database Admin UI)
   mongo-express:
@@ -51,19 +51,19 @@ services:
     depends_on:
       - mongodb
     networks:
-      - oauth2-net
+      - authexa-net
 
   # Redis Cache & Session Store
   redis:
     image: redis
-    container_name: oauth2-redis
+    container_name: authexa-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis-data:/data
     networks:
-      - oauth2-net
+      - authexa-net
 
 volumes:
   mongo-data:
@@ -72,5 +72,5 @@ volumes:
     driver: local
 
 networks:
-  oauth2-net:
+  authexa-net:
     driver: bridge

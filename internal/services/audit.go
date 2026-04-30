@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/aminshahid573/oauth2-provider/internal/models"
-	"github.com/aminshahid573/oauth2-provider/internal/storage"
+	"github.com/aminshahid573/authexa/internal/models"
+	"github.com/aminshahid573/authexa/internal/storage"
 )
 
 // AuditService provides a central way to record audit events.

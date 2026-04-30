@@ -1,6 +1,6 @@
 package services
 
-import "github.com/aminshahid573/oauth2-provider/internal/models"
+import "github.com/aminshahid573/authexa/internal/models"
 
 // ScopeService provides logic for managing OAuth2 scopes.
 type ScopeService struct {

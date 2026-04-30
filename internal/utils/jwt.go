@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/aminshahid573/oauth2-provider/internal/config"
+	"github.com/aminshahid573/authexa/internal/config"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jwk"

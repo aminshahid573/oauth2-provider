@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/aminshahid573/oauth2-provider/web"
+	"github.com/aminshahid573/authexa/web"
 	"github.com/gorilla/csrf"
 )
 

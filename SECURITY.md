@@ -11,7 +11,7 @@ Currently, only the `main` branch (and the latest stable release, if applicable)
 
 ## Reporting a Vulnerability
 
-We take the security of OAuth2 Provider very seriously.
+We take the security of Authexa very seriously.
 
 If you discover a security vulnerability in this project, please **do not publicly disclose it** by opening a GitHub issue. 
 

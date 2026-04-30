@@ -1,4 +1,4 @@
-module github.com/aminshahid573/oauth2-provider
+module github.com/aminshahid573/authexa
 
 go 1.24.1
 
