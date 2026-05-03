@@ -61,5 +61,5 @@ The application is wired together in `cmd/server/main.go`. This function acts as
 This pattern ensures that components are loosely coupled and can be easily tested by injecting mock dependencies.
 
 ---
-| [![Previous](https://img.shields.io/badge/←_Previous-1f6feb?style=for-the-badge&logo=none&logoColor=white&labelColor=1f6feb&color=1f6feb)](SETUP.md) <br> <sub>SETUP.md</sub> | [![Next](https://img.shields.io/badge/Next_→-1f6feb?style=for-the-badge&logo=none&logoColor=white&labelColor=1f6feb&color=1f6feb)](API.md) <br> <sub>API.md</sub> |
+| [![Previous](https://img.shields.io/badge/←_Previous-1f6feb?style=for-the-badge&logo=none&logoColor=white&labelColor=1f6feb&color=1f6feb)](SETUP.md) <br> <sub>SETUP.md</sub> | [![Next](https://img.shields.io/badge/Next_→-1f6feb?style=for-the-badge&logo=none&logoColor=white&labelColor=1f6feb&color=1f6feb)](FLOWS.md) <br> <sub>FLOWS.md</sub> |
 |----------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
