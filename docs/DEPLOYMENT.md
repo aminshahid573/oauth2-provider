@@ -33,7 +33,7 @@ The application is configured using environment variables.
     When running inside Docker Compose, the application needs to connect to the other containers by their service name, not `localhost`. Update your `.env` file accordingly:
     ```dotenv
     # .env for Docker Compose
-    MONGO_URI=mongodb://root:password@mongodb:27017/oauth2_provider?authSource=admin
+    MONGO_URI=mongodb://root:password@mongodb:27017/authexa?authSource=admin
     REDIS_ADDR=redis:6379
     ```
 
