@@ -10,6 +10,11 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 )
 
+// ComponentResult holds the outcome of a single dependency health check.
+type ComponentResult struct {
+	Err error
+}
+
 // HealthChecker provides methods to check the health of application dependencies.
 type HealthChecker struct {
 	mongoClient *mongo.Client
@@ -25,46 +30,42 @@ func NewHealthChecker(mongoClient *mongo.Client, redisClient *redis.Client) *Hea
 }
 
 // Check performs a concurrent health check of all dependencies.
-func (h *HealthChecker) Check(ctx context.Context) map[string]string {
-	// Use a WaitGroup to run checks in parallel for speed.
+// Each dependency is probed with a 2-second timeout to prevent slow
+// checks from blocking the readiness response.
+func (h *HealthChecker) Check(ctx context.Context) map[string]ComponentResult {
+	type entry struct {
+		name   string
+		result ComponentResult
+	}
+
 	var wg sync.WaitGroup
-	results := make(chan map[string]string, 2)
+	results := make(chan entry, 2)
 	wg.Add(2)
 
 	// Check MongoDB
 	go func() {
 		defer wg.Done()
-		status := "ok"
-		// Use a short timeout for health checks.
 		checkCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
-		if err := h.mongoClient.Ping(checkCtx, readpref.Primary()); err != nil {
-			status = "error: " + err.Error()
-		}
-		results <- map[string]string{"mongodb": status}
+		err := h.mongoClient.Ping(checkCtx, readpref.Primary())
+		results <- entry{name: "mongodb", result: ComponentResult{Err: err}}
 	}()
 
 	// Check Redis
 	go func() {
 		defer wg.Done()
-		status := "ok"
 		checkCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
-		if _, err := h.redisClient.Ping(checkCtx).Result(); err != nil {
-			status = "error: " + err.Error()
-		}
-		results <- map[string]string{"redis": status}
+		_, err := h.redisClient.Ping(checkCtx).Result()
+		results <- entry{name: "redis", result: ComponentResult{Err: err}}
 	}()
 
 	wg.Wait()
 	close(results)
 
-	// Consolidate results
-	healthStatus := make(map[string]string)
-	for res := range results {
-		for k, v := range res {
-			healthStatus[k] = v
-		}
+	healthStatus := make(map[string]ComponentResult, 2)
+	for e := range results {
+		healthStatus[e.name] = e.result
 	}
 
 	return healthStatus

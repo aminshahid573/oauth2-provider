@@ -24,6 +24,7 @@ type FrontendHandler struct {
 	clientService  *services.ClientService
 	scopeService   *services.ScopeService
 	auditService   *services.AuditService
+	isProduction   bool
 }
 
 // NewFrontendHandler creates a new FrontendHandler.
@@ -36,6 +37,7 @@ func NewFrontendHandler(
 	clientService *services.ClientService,
 	scopeService *services.ScopeService,
 	auditService *services.AuditService,
+	appEnv string,
 ) *FrontendHandler {
 	return &FrontendHandler{
 		logger:         logger,
@@ -46,6 +48,7 @@ func NewFrontendHandler(
 		clientService:  clientService,
 		scopeService:   scopeService,
 		auditService:   auditService,
+		isProduction:   appEnv == "production",
 	}
 }
 
@@ -98,7 +101,10 @@ func (h *FrontendHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isSecure := r.TLS != nil
+	// In production, always set Secure=true so session cookies are never
+	// transmitted over plain HTTP (RFC 6265 section 4.1.2.5).
+	// In development, derive from TLS state to avoid breaking local setups.
+	isSecure := h.isProduction || r.TLS != nil
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
 		Value:    session.ID,
@@ -185,12 +191,17 @@ func (h *FrontendHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		h.sessionService.DeleteSession(r.Context(), sessionCookie.Value)
 	}
 
-	// Clear the cookie by setting its max age to -1
+	// Clear the cookie by setting its max age to -1.
+	// Secure attributes must match the original cookie for browsers to
+	// correctly delete it (RFC 6265 section 4.1.2).
 	http.SetCookie(w, &http.Cookie{
-		Name:   "session_id",
-		Value:  "",
-		Path:   "/",
-		MaxAge: -1,
+		Name:     "session_id",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   h.isProduction || r.TLS != nil,
+		SameSite: http.SameSiteLaxMode,
 	})
 
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
