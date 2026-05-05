@@ -60,7 +60,8 @@ all your applications from a single, central auth server.
 -   ✅ **Token Introspection & Revocation**
 -   ✅ **JWKS & Discovery Endpoints**
 -   ✅ **Admin Dashboard & API**
--   ✅ **Metrics & Health Checks**
+-   ✅ **Prometheus Metrics**
+-   ✅ **Kubernetes-ready Health Probes** (liveness + readiness)
 
 ```mermaid
 sequenceDiagram
@@ -149,6 +150,7 @@ This project includes comprehensive documentation for developers, administrators
 -   **[API.md](./docs/API.md)**: A complete technical reference for every API endpoint.
 -   **[FLOWS.md](./docs/FLOWS.md)**: Practical walkthroughs of each supported OAuth2 flow.
 -   **[DEPLOYMENT.md](./docs/DEPLOYMENT.md)**: Instructions for deploying the application using Docker.
+-   **[SECURITY_HARDENING.md](./docs/SECURITY_HARDENING.md)**: Production security defaults, headers, cookie policies, and health probes.
 -   **[REFERENCES.md](./REFERENCES.md)**: A complete list of all IETF RFCs and official specifications this project is implemented against.
 
 ## Technology Stack

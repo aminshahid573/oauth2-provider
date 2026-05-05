@@ -69,8 +69,8 @@ func NewRouter(deps AppDependencies) http.Handler {
 	mux := http.NewServeMux()
 
 	// --- Initialize Handlers and Middleware from Dependencies ---
-	authMiddleware := middleware.NewAuthMiddleware(deps.Logger, deps.SessionService, deps.UserStore)
-	frontendHandler := handlers.NewFrontendHandler(deps.Logger, deps.TemplateCache, deps.AuthService, deps.SessionService, deps.TokenService, deps.ClientService, deps.ScopeService, deps.AuditService)
+	authMiddleware := middleware.NewAuthMiddleware(deps.Logger, deps.SessionService, deps.UserStore, deps.AppEnv)
+	frontendHandler := handlers.NewFrontendHandler(deps.Logger, deps.TemplateCache, deps.AuthService, deps.SessionService, deps.TokenService, deps.ClientService, deps.ScopeService, deps.AuditService, deps.AppEnv)
 	authHandler := handlers.NewAuthHandler(deps.Logger, deps.TemplateCache, deps.ClientService, deps.ScopeService, deps.TokenService)
 
 	// == Route Definitions ==
@@ -163,9 +163,9 @@ func NewRouter(deps AppDependencies) http.Handler {
 	// Apply the Global rate limiter to ALL requests.
 	handler = deps.RateLimiter.Global(handler)
 
-	handler = middleware.SecurityHeaders(handler)
+	handler = middleware.SecurityHeaders(deps.AppEnv)(handler)
 
-	handler = middleware.CORS(deps.AllowedOrigins)(handler)
+	handler = middleware.CORS(deps.AllowedOrigins, deps.AppEnv)(handler)
 
 	handler = middleware.StructuredLogger(deps.Logger)(handler)
 
@@ -174,7 +174,8 @@ func NewRouter(deps AppDependencies) http.Handler {
 
 	topLevelMux := http.NewServeMux()
 	topLevelMux.Handle("GET /metrics", promhttp.Handler())
-	topLevelMux.Handle("GET /healthz", deps.HealthHandler)
+	topLevelMux.HandleFunc("GET /health/live", deps.HealthHandler.Live)
+	topLevelMux.HandleFunc("GET /health/ready", deps.HealthHandler.Ready)
 	topLevelMux.Handle("/", handler)
 
 	finalHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

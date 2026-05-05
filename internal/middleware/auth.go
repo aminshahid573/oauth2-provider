@@ -20,17 +20,17 @@ const UserKey CtxUserKey = "user"
 type AuthMiddleware struct {
 	logger         *slog.Logger
 	sessionService *services.SessionService
-	// *** THIS IS THE FIX ***
-	// The middleware depends on the storage interface to fetch the user.
-	userService storage.UserStore
+	userService    storage.UserStore
+	isProduction   bool
 }
 
 // NewAuthMiddleware creates a new AuthMiddleware.
-func NewAuthMiddleware(logger *slog.Logger, sessionService *services.SessionService, userService storage.UserStore) *AuthMiddleware {
+func NewAuthMiddleware(logger *slog.Logger, sessionService *services.SessionService, userService storage.UserStore, appEnv string) *AuthMiddleware {
 	return &AuthMiddleware{
 		logger:         logger,
 		sessionService: sessionService,
 		userService:    userService,
+		isProduction:   appEnv == "production",
 	}
 }
 
@@ -96,11 +96,16 @@ func (m *AuthMiddleware) redirectToLogin(w http.ResponseWriter, r *http.Request)
 }
 
 func (m *AuthMiddleware) clearSessionCookie(w http.ResponseWriter) {
+	// Secure attributes must match the original cookie for browsers to
+	// correctly delete it (RFC 6265 section 4.1.2).
 	http.SetCookie(w, &http.Cookie{
-		Name:   "session_id",
-		Value:  "",
-		Path:   "/",
-		MaxAge: -1, // Deletes the cookie
+		Name:     "session_id",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   m.isProduction,
+		SameSite: http.SameSiteLaxMode,
 	})
 }
 
