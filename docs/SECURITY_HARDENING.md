@@ -104,6 +104,63 @@ The `503` response includes a `Retry-After: 5` header per [RFC 9110 section 15.6
 
 Both endpoints set `Cache-Control: no-store` to prevent health data from being cached.
 
+---
+
+## Access Token Revocation (JTI Revocation List)
+
+JWT access tokens are stateless by design. Once issued, a valid JWT cannot be invalidated before its `exp` claim without a server-side check. Authexa addresses this with a Redis-backed JTI (JWT ID) revocation list.
+
+### How it works
+
+1. Every access token includes a unique `jti` claim (UUID, per [RFC 7519 section 4.1.7](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7)).
+2. When `POST /oauth2/revoke` receives a JWT access token, the handler writes the token's `jti` to Redis with a TTL equal to `exp - now` (the token's remaining lifetime).
+3. When `POST /oauth2/introspect` receives a JWT access token, the handler checks Redis for the `jti` before returning `active: true`.
+4. Redis entries expire automatically once the original token would have expired, keeping the revocation list small.
+
+### Fail-closed behavior
+
+If the Redis revocation store is unreachable during introspection, the token is reported as `active: false`. This fail-closed approach prevents revoked tokens from being accepted during infrastructure outages.
+
+### Revocation store interface
+
+```go
+type RevocationStore interface {
+    Revoke(ctx context.Context, jti string, ttl time.Duration) error
+    IsRevoked(ctx context.Context, jti string) (bool, error)
+}
+```
+
+The Redis implementation uses keys prefixed with `revoked_jti:` and leverages Redis TTL for automatic cleanup.
+
+**Relevant standards:** [RFC 7009 (Token Revocation)](https://www.rfc-editor.org/rfc/rfc7009), [RFC 7662 section 2.2 (Introspection)](https://www.rfc-editor.org/rfc/rfc7662#section-2.2), [RFC 9068 section 2.2 (JWT Access Token Profile)](https://www.rfc-editor.org/rfc/rfc9068#section-2.2).
+
+---
+
+## Deterministic Key IDs (RFC 7638 JWK Thumbprint)
+
+The `kid` (Key ID) in the JWKS and JWT headers is derived from the public key using the [RFC 7638 JWK Thumbprint](https://www.rfc-editor.org/rfc/rfc7638) algorithm (SHA-256). This replaces the previous approach of generating a random UUID on every server startup.
+
+### Why this matters
+
+- **JWKS stability:** Clients and resource servers cache the JWKS endpoint (per its `Cache-Control: public, max-age=3600` header). A random `kid` that changes on every restart invalidates all cached keys, causing token verification failures until the cache refreshes.
+- **Determinism:** The same RSA key always produces the same `kid`, whether loaded from disk, a secrets manager, or re-deployed to a different server instance.
+- **Key rotation readiness:** When key rotation is implemented, the deterministic `kid` ensures that tokens signed with the old key can still be verified by looking up the correct key in the JWKS set.
+
+**Relevant standards:** [RFC 7638 (JWK Thumbprint)](https://www.rfc-editor.org/rfc/rfc7638), [RFC 7517 section 4.5 (JWK kid parameter)](https://www.rfc-editor.org/rfc/rfc7517#section-4.5).
+
+---
+
+## Per-Client Rate Limiting
+
+The per-client rate limiter resolves `client_id` from two sources, checked in order:
+
+1. **HTTP Basic Auth header** (RFC 6749 section 2.3.1) -- the username component of `Authorization: Basic base64(client_id:client_secret)`.
+2. **Form body parameter** -- `client_id` in the `application/x-www-form-urlencoded` request body, used by public clients.
+
+This ensures that confidential clients authenticating via Basic Auth are correctly identified for rate limiting, rather than being bucketed as anonymous.
+
+**Relevant standards:** [RFC 6749 section 2.3.1](https://www.rfc-editor.org/rfc/rfc6749#section-2.3.1), [RFC 7617 (Basic Auth)](https://www.rfc-editor.org/rfc/rfc7617), [RFC 6819 section 4.4.1.1 (brute-force countermeasures)](https://www.rfc-editor.org/rfc/rfc6819#section-4.4.1.1).
+
 ### Kubernetes Configuration Example
 
 ```yaml

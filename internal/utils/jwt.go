@@ -2,6 +2,7 @@
 package utils
 
 import (
+	"crypto"
 	"crypto/rsa"
 	"encoding/base64"
 	"fmt"
@@ -50,10 +51,20 @@ func NewJWTManager(cfg config.JWTConfig) (*JWTManager, error) {
 		return nil, fmt.Errorf("failed to parse RSA private key from PEM: %w", err)
 	}
 
-	// Generate a unique ID for this key.
-	keyID := uuid.NewString()
+	// Derive a deterministic Key ID using RFC 7638 JWK Thumbprint (SHA-256).
+	// This ensures the same key always produces the same KID across restarts,
+	// which is critical for JWKS stability and token verification by resource servers.
+	jwkKey, err := jwk.FromRaw(&privateKey.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create JWK from public key for thumbprint: %w", err)
+	}
+	thumbprint, err := jwkKey.Thumbprint(crypto.SHA256)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compute RFC 7638 JWK thumbprint: %w", err)
+	}
+	keyID := base64.RawURLEncoding.EncodeToString(thumbprint)
 
-	slog.Info("new RSA key pair generated for JWT signing", "key_id", keyID)
+	slog.Info("RSA signing key loaded with deterministic KID (RFC 7638)", "key_id", keyID)
 
 	return &JWTManager{
 		privateKey:           privateKey,

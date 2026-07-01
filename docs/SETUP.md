@@ -36,7 +36,65 @@ The application is configured via a `.env` file in the project root.
     cp .env.example .env
     ```
 
-2.  **Understand and Set Environment Variables:**
+2.  **Generate Required Secrets:**
+
+    Every value marked `CHANGE_ME` in `.env.example` must be replaced before the
+    application will start. The commands below work on Linux and macOS (use
+    Git Bash on Windows).
+
+    **RSA Private Key (JWT signing, RS256)**
+
+    This is the most critical secret. It signs all access tokens and ID tokens.
+    Compromise of this key allows an attacker to forge tokens.
+
+    ```bash
+    # 1. Generate a 2048-bit RSA key pair
+    openssl genpkey -algorithm RSA -out private.pem -pkeyopt rsa_keygen_bits:2048
+
+    # 2. Base64-encode the PEM file (single line, no wrapping)
+    #    Linux:
+    base64 -w 0 private.pem
+    #    macOS:
+    base64 -i private.pem
+
+    # 3. Paste the output as the value of JWT_PRIVATE_KEY_BASE64 in .env
+
+    # 4. Delete the PEM file -- the encoded value in .env is all you need
+    rm private.pem
+    ```
+
+    > **Production note:** In production, store `JWT_PRIVATE_KEY_BASE64` in a
+    > secrets manager (HashiCorp Vault, AWS Secrets Manager, GCP Secret Manager)
+    > and inject it as an environment variable at deploy time. Never commit the
+    > key to version control.
+
+    **JWT Secret Key (HMAC, min 32 characters)**
+
+    ```bash
+    openssl rand -base64 32
+    # Paste as JWT_SECRET_KEY
+    ```
+
+    **CSRF Auth Key (exactly 32 bytes)**
+
+    ```bash
+    openssl rand -base64 32 | head -c 32
+    # Paste as CSRF_AUTH_KEY
+    ```
+
+    **MongoDB Credentials**
+
+    Choose a strong username and password for the MongoDB root user:
+
+    ```bash
+    # Example: generate a random password
+    openssl rand -base64 24
+    ```
+
+    Set both `MONGO_ROOT_USER` / `MONGO_ROOT_PASSWORD` and update
+    `MONGO_URI` to match (replace the `CHANGE_ME` placeholders in the URI).
+
+3.  **Understand and Set Environment Variables:**
     Open the `.env` file and configure the following variables.
 
 | Variable                   | Description                                                                                                                                                           | Example Value                                                                                             |
