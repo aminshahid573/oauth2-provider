@@ -64,7 +64,20 @@ func (rl *RateLimiter) Global(next http.Handler) http.Handler {
 	})
 }
 
-// PerClient is a middleware that applies a rate limit based on the `client_id` in the request body.
+// resolveClientID extracts the OAuth2 client_id from the request.
+// It checks HTTP Basic Authentication first (RFC 6749 Section 2.3.1,
+// where username = client_id), then falls back to the "client_id" form
+// parameter used by public clients.
+func resolveClientID(r *http.Request) string {
+	if clientID, _, ok := r.BasicAuth(); ok && clientID != "" {
+		return clientID
+	}
+	return r.FormValue("client_id")
+}
+
+// PerClient is a middleware that applies a rate limit based on the OAuth2
+// client_id. The client_id is resolved from HTTP Basic Auth (confidential
+// clients) or from the request body (public clients).
 func (rl *RateLimiter) PerClient(next http.Handler) http.Handler {
 	if !rl.cfg.TokenEnabled {
 		return next
@@ -74,7 +87,7 @@ func (rl *RateLimiter) PerClient(next http.Handler) http.Handler {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
-		clientID := r.PostForm.Get("client_id")
+		clientID := resolveClientID(r)
 		if clientID == "" {
 			next.ServeHTTP(w, r)
 			return

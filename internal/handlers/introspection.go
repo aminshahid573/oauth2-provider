@@ -9,24 +9,33 @@ import (
 
 	"github.com/aminshahid573/authexa/internal/models"
 	"github.com/aminshahid573/authexa/internal/services"
+	"github.com/aminshahid573/authexa/internal/storage"
 	"github.com/aminshahid573/authexa/internal/utils"
 )
 
 // IntrospectionHandler handles token introspection requests.
 type IntrospectionHandler struct {
-	logger        *slog.Logger
-	clientService *services.ClientService
-	tokenService  *services.TokenService
-	jwtManager    *utils.JWTManager
+	logger          *slog.Logger
+	clientService   *services.ClientService
+	tokenService    *services.TokenService
+	jwtManager      *utils.JWTManager
+	revocationStore storage.RevocationStore
 }
 
 // NewIntrospectionHandler creates a new IntrospectionHandler.
-func NewIntrospectionHandler(logger *slog.Logger, clientService *services.ClientService, tokenService *services.TokenService, jwtManager *utils.JWTManager) *IntrospectionHandler {
+func NewIntrospectionHandler(
+	logger *slog.Logger,
+	clientService *services.ClientService,
+	tokenService *services.TokenService,
+	jwtManager *utils.JWTManager,
+	revocationStore storage.RevocationStore,
+) *IntrospectionHandler {
 	return &IntrospectionHandler{
-		logger:        logger,
-		clientService: clientService,
-		tokenService:  tokenService,
-		jwtManager:    jwtManager,
+		logger:          logger,
+		clientService:   clientService,
+		tokenService:    tokenService,
+		jwtManager:      jwtManager,
+		revocationStore: revocationStore,
 	}
 }
 
@@ -61,7 +70,25 @@ func (h *IntrospectionHandler) Introspect(w http.ResponseWriter, r *http.Request
 	// First, try verifying it as a JWT Access Token.
 	claims, err := h.jwtManager.VerifyToken(tokenToInspect)
 	if err == nil {
-		// Valid JWT Access Token
+		// JWT signature and expiry are valid. Now check the JTI revocation list.
+		// Per RFC 7662 section 2.2, "active" MUST be false for revoked tokens
+		// even if the JWT is cryptographically valid.
+		if claims.ID != "" {
+			revoked, revokeErr := h.revocationStore.IsRevoked(r.Context(), claims.ID)
+			if revokeErr != nil {
+				h.logger.Error("failed to check JTI revocation list", "error", revokeErr, "jti", claims.ID)
+				// Fail closed: treat as inactive if the revocation store is unreachable.
+				h.writeInactiveResponse(w)
+				return
+			}
+			if revoked {
+				h.logger.Debug("introspected token is revoked", "jti", claims.ID)
+				h.writeInactiveResponse(w)
+				return
+			}
+		}
+
+		// Valid and not revoked.
 		response := map[string]any{
 			"active":     true,
 			"scope":      strings.Join(claims.Scope, " "),

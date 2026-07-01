@@ -3,31 +3,46 @@ package handlers
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/aminshahid573/authexa/internal/services"
+	"github.com/aminshahid573/authexa/internal/storage"
+	"github.com/aminshahid573/authexa/internal/utils"
 )
 
 // RevocationHandler handles token revocation requests.
 type RevocationHandler struct {
-	logger        *slog.Logger
-	clientService *services.ClientService
-	tokenService  *services.TokenService
+	logger          *slog.Logger
+	clientService   *services.ClientService
+	tokenService    *services.TokenService
+	jwtManager      *utils.JWTManager
+	revocationStore storage.RevocationStore
 }
 
 // NewRevocationHandler creates a new RevocationHandler.
-func NewRevocationHandler(logger *slog.Logger, clientService *services.ClientService, tokenService *services.TokenService) *RevocationHandler {
+func NewRevocationHandler(
+	logger *slog.Logger,
+	clientService *services.ClientService,
+	tokenService *services.TokenService,
+	jwtManager *utils.JWTManager,
+	revocationStore storage.RevocationStore,
+) *RevocationHandler {
 	return &RevocationHandler{
-		logger:        logger,
-		clientService: clientService,
-		tokenService:  tokenService,
+		logger:          logger,
+		clientService:   clientService,
+		tokenService:    tokenService,
+		jwtManager:      jwtManager,
+		revocationStore: revocationStore,
 	}
 }
 
 // Revoke is the main handler for the revocation endpoint.
+// It supports revoking both refresh tokens (by deleting from the database)
+// and JWT access tokens (by adding the JTI to a Redis revocation list).
+// Conforms to RFC 7009.
 func (h *RevocationHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 	// 1. Authenticate the client.
 	// The client can authenticate using basic auth or by including credentials in the body.
-	// We'll support basic auth for simplicity.
 	clientID, clientSecret, ok := r.BasicAuth()
 	if !ok {
 		// Fallback to checking form parameters
@@ -53,9 +68,33 @@ func (h *RevocationHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3. For now, we only support revoking refresh tokens.
-	// Access tokens are stateless JWTs and will expire on their own.
-	// Revoking the refresh token prevents new access tokens from being issued.
+	// 3. Try to handle as a JWT access token first.
+	// If the token parses as a valid JWT, revoke it by adding its JTI to the
+	// revocation list with a TTL equal to the token's remaining lifetime.
+	claims, jwtErr := h.jwtManager.VerifyToken(tokenToRevoke)
+	if jwtErr == nil {
+		// Valid JWT access token -- verify client ownership via the aud/client_id claim.
+		if claims.ClientID != client.ClientID {
+			h.logger.Warn("client attempted to revoke an access token not belonging to it",
+				"requesting_client", client.ClientID, "token_client", claims.ClientID)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Calculate remaining TTL for the revocation entry.
+		remaining := time.Until(claims.ExpiresAt.Time)
+		if remaining > 0 && claims.ID != "" {
+			if err := h.revocationStore.Revoke(r.Context(), claims.ID, remaining); err != nil {
+				h.logger.Error("failed to revoke access token JTI", "error", err, "jti", claims.ID)
+			} else {
+				h.logger.Info("access token revoked via JTI", "jti", claims.ID, "client_id", client.ClientID)
+			}
+		}
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// 4. Not a JWT -- try as a refresh token (opaque, stored in database).
 	signature := h.tokenService.HashToken(tokenToRevoke)
 	token, err := h.tokenService.GetTokenBySignature(r.Context(), signature)
 	if err != nil {
@@ -64,18 +103,17 @@ func (h *RevocationHandler) Revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 4. Security check: Ensure the client revoking the token is the one it was issued to.
+	// 5. Security check: Ensure the client revoking the token is the one it was issued to.
 	if token.ClientID != client.ClientID {
-		h.logger.Warn("client attempted to revoke a token not belonging to it", "requesting_client", client.ClientID, "token_client", token.ClientID)
+		h.logger.Warn("client attempted to revoke a token not belonging to it",
+			"requesting_client", client.ClientID, "token_client", token.ClientID)
 		w.WriteHeader(http.StatusOK) // Return 200 OK to prevent information leakage.
 		return
 	}
 
-	// 5. Delete the token from the database.
-	err = h.tokenService.DeleteTokenBySignature(r.Context(), signature)
-	if err != nil {
+	// 6. Delete the token from the database.
+	if err := h.tokenService.DeleteTokenBySignature(r.Context(), signature); err != nil {
 		h.logger.Error("failed to delete token during revocation", "error", err)
-		// Even if deletion fails, we should probably not signal an error to the client.
 	}
 
 	h.logger.Info("token revoked successfully", "client_id", client.ClientID)

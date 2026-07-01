@@ -58,8 +58,8 @@ all your applications from a single, central auth server.
 -   ✅ **Device Authorization Flow**
 -   ✅ **JWT Bearer Token Flow**
 -   ✅ **OpenID Connect ID Tokens**
--   ✅ **Token Introspection & Revocation**
--   ✅ **JWKS & Discovery Endpoints**
+-   ✅ **Token Introspection & Revocation** (access tokens via JTI revocation list + refresh tokens)
+-   ✅ **JWKS & Discovery Endpoints** (deterministic Key IDs via RFC 7638)
 -   ✅ **Admin Dashboard & API**
 -   ✅ **Prometheus Metrics**
 -   ✅ **Kubernetes-ready Health Probes** (liveness + readiness)
