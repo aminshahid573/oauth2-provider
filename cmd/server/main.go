@@ -122,6 +122,7 @@ func run() error {
 	auditStore := mongodb.NewAuditRepository(db)
 	sessionStore := redis.NewSessionRepository(redisClient)
 	pkceStore := redis.NewPKCERepository(redisClient)
+	revocationStore := redis.NewRevocationRepository(redisClient)
 	logger.Info("data stores initialized")
 
 	// --- Initialize Services & Utilities ---
@@ -152,8 +153,8 @@ func run() error {
 
 	// --- Initialize Handlers ---
 	healthHandler := handlers.NewHealthHandler(healthChecker)
-	introspectionHandler := handlers.NewIntrospectionHandler(logger, clientService, tokenService, jwtManager)
-	revocationHandler := handlers.NewRevocationHandler(logger, clientService, tokenService)
+	introspectionHandler := handlers.NewIntrospectionHandler(logger, clientService, tokenService, jwtManager, revocationStore)
+	revocationHandler := handlers.NewRevocationHandler(logger, clientService, tokenService, jwtManager, revocationStore)
 	jwksHandler := handlers.NewJWKSHandler(logger, jwtManager)
 	discoveryHandler := handlers.NewDiscoveryHandler(logger, clientService)
 	userInfoHandler := handlers.NewUserInfoHandler(logger, jwtManager, dataStore.User)

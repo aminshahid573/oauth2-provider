@@ -60,6 +60,16 @@ type PKCEStore interface {
 	Delete(ctx context.Context, code string) error
 }
 
+// RevocationStore defines the interface for storing revoked JWT token
+// identifiers (JTIs). Entries are stored with a TTL matching the token's
+// remaining lifetime so they are automatically cleaned up after expiry.
+type RevocationStore interface {
+	// Revoke marks a JTI as revoked for the given duration.
+	Revoke(ctx context.Context, jti string, ttl time.Duration) error
+	// IsRevoked returns true if the given JTI has been revoked.
+	IsRevoked(ctx context.Context, jti string) (bool, error)
+}
+
 // DataStore is a composite interface that embeds all store interfaces.
 // This is useful for dependency injection.
 type DataStore struct {
